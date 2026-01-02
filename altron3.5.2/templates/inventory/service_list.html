@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-4 sm:space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold gradient-text mb-2">Service Cases</h1>
+            <p class="text-gray-600 text-sm sm:text-base lg:text-lg">View and filter service records</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            <a href="{% url 'create_service_case' %}" class="btn-primary text-white px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-xl font-medium inline-flex items-center space-x-2 text-xs sm:text-sm lg:text-base">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                <span>Create New</span>
+            </a>
+            <button onclick="exportToExcel()" class="btn-secondary text-white px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-xl font-medium inline-flex items-center space-x-2 text-xs sm:text-sm lg:text-base">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Export Excel</span>
+            </button>
+            <a href="{% url 'service_module' %}" class="btn-secondary text-white px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-xl font-medium inline-flex items-center space-x-2 text-xs sm:text-sm lg:text-base">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span>Back</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+        <div class="card p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] sm:text-xs lg:text-sm text-blue-100 font-medium">Total Cases</p>
+                    <p class="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">{{ page_obj.paginator.count|default:0 }}</p>
+                </div>
+                <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] sm:text-xs lg:text-sm text-emerald-100 font-medium">Completed</p>
+                    <p class="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">{{ counts.completed|default:0 }}</p>
+                </div>
+                <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] sm:text-xs lg:text-sm text-amber-100 font-medium">In Progress</p>
+                    <p class="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">{{ counts.in_progress|default:0 }}</p>
+                </div>
+                <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-blue-500 to-cyan-600 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] sm:text-xs lg:text-sm text-blue-100 font-medium">Open</p>
+                    <p class="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">{{ counts.open|default:0 }}</p>
+                </div>
+                <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode Info Card (when searched) -->
+    {% if barcode_info %}
+    <div class="card p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex-1">
+                <h3 class="text-sm sm:text-base font-bold text-gray-900 mb-2 flex items-center">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Barcode: <span class="text-purple-600">{{ barcode_info.barcode.sequence_number }}</span>
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">SKU</p>
+                        <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode_info.barcode.sku.code }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Batch</p>
+                        <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode_info.barcode.batch.prefix }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Service Cases</p>
+                        <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode_info.service_case_count }}</p>
+                    </div>
+                    {% if barcode_info.recent_test %}
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Last Test</p>
+                        <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode_info.recent_test.test_date|date:"Y-m-d" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if barcode_info.recent_test %}
+                <div class="mt-2">
+                    <a href="{% url 'test_detail' test_id=barcode_info.recent_test.id %}" class="text-[10px] sm:text-xs text-purple-600 font-semibold hover:text-purple-800 inline-flex items-center">
+                        <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        View Test Sheet
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="flex gap-2">
+                {% if barcode_info.service_case_count > 0 %}
+                <a href="{% url 'service_history' barcode_id=barcode_info.barcode.id %}" class="btn-primary text-white px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all inline-flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>History</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'create_service_case_barcode' barcode_id=barcode_info.barcode.id %}" class="btn-secondary text-white px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all inline-flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                    <span>New Service</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% elif serial_number and not searched_barcode %}
+    <!-- Barcode Not Found -->
+    <div class="card p-3 sm:p-4 bg-red-50 border-2 border-red-200">
+        <div class="flex items-start space-x-3">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+                <h3 class="text-sm sm:text-base font-bold text-red-800">Barcode Not Found</h3>
+                <p class="text-xs sm:text-sm text-red-700">No barcode found matching <strong>"{{ serial_number }}"</strong>. Please check the serial number and try again.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter Card -->
+    <div class="card p-3 sm:p-4 lg:p-6">
+        <h3 class="text-sm sm:text-base lg:text-lg font-bold gradient-text mb-3 sm:mb-4 flex items-center">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+            </svg>
+            Filter Results
+        </h3>
+        <form method="get" class="space-y-3 sm:space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                <div class="space-y-1.5">
+                    <label for="serial_number" class="block text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-700">
+                        🔍 Serial Number / Barcode
+                    </label>
+                    <input type="text" name="serial_number" id="serial_number" value="{{ serial_number|default_if_none:'' }}"
+                           placeholder="e.g., ABC-A001"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-xs sm:text-sm lg:text-base">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="case_id" class="block text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-700">Case ID</label>
+                    <input type="text" name="case_id" id="case_id" value="{{ case_id|default_if_none:'' }}"
+                           placeholder="e.g., SVC-2025-0001"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-xs sm:text-sm lg:text-base">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="technician" class="block text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-700">Technician</label>
+                    <input type="text" name="technician" id="technician" value="{{ technician|default_if_none:'' }}"
+                           placeholder="Technician name"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-xs sm:text-sm lg:text-base">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="status" class="block text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-700">Status</label>
+                    <select name="status" id="status"
+                            class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-xs sm:text-sm lg:text-base bg-white">
+                        <option value="">All Statuses</option>
+                        {% for status_value, status_label in status_choices %}
+                        <option value="{{ status_value }}" {% if status == status_value %}selected{% endif %}>{{ status_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="space-y-1.5">
+                    <label for="from_date" class="block text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-700">From Date</label>
+                    <input type="date" name="from_date" id="from_date" value="{{ from_date|default_if_none:'' }}"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-xs sm:text-sm lg:text-base">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="to_date" class="block text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-700">To Date</label>
+                    <input type="date" name="to_date" id="to_date" value="{{ to_date|default_if_none:'' }}"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-xs sm:text-sm lg:text-base">
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 items-end">
+                    <button type="submit" class="flex-1 btn-primary text-white py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-medium text-xs sm:text-sm lg:text-base">
+                        Apply
+                    </button>
+                    <a href="{% url 'service_list' %}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-medium text-center text-xs sm:text-sm lg:text-base transition-colors">
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Table Card -->
+    <div class="card p-3 sm:p-4 lg:p-6 overflow-hidden">
+        <h3 class="text-sm sm:text-base lg:text-lg font-bold gradient-text mb-3 sm:mb-4 flex items-center">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            Service Records
+        </h3>
+        <div class="overflow-x-auto -mx-3 sm:-mx-4 lg:mx-0">
+            <div class="inline-block min-w-full align-middle">
+                <div class="overflow-hidden rounded-xl border border-gray-200">
+                    <table id="serviceTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gradient-to-r from-purple-50 to-indigo-50">
+                            <tr>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Case ID</th>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden sm:table-cell">Serial No.</th>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden md:table-cell">Service Date</th>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden lg:table-cell">Technician</th>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Status</th>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden sm:table-cell">Created</th>
+                                <th class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 text-left text-[10px] sm:text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for case in page_obj %}
+                            <tr class="hover:bg-purple-50 transition-colors">
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
+                                    <div class="text-[10px] sm:text-xs sm:text-sm font-medium text-gray-900">{{ case.case_id }}</div>
+                                </td>
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden sm:table-cell">
+                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.barcode.sequence_number|default:"N/A" }}</div>
+                                </td>
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden md:table-cell">
+                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.service_date|date:"Y-m-d" }}</div>
+                                </td>
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden lg:table-cell">
+                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.technician_name }}</div>
+                                </td>
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2 sm:px-2.5 py-1 rounded-full text-[9px] sm:text-xs font-semibold
+                                        {% if case.status == 'open' %}bg-blue-100 text-blue-700
+                                        {% elif case.status == 'in_progress' %}bg-amber-100 text-amber-700
+                                        {% elif case.status == 'completed' %}bg-emerald-100 text-emerald-700
+                                        {% elif case.status == 'on_hold' %}bg-gray-100 text-gray-700
+                                        {% else %}bg-red-100 text-red-700{% endif %}">
+                                        {{ case.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden sm:table-cell">
+                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.created_at|date:"Y-m-d H:i" }}</div>
+                                </td>
+                                <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
+                                    <a href="{% url 'service_detail' case_id=case.case_id %}" class="text-purple-600 hover:text-purple-800 font-medium text-[10px] sm:text-xs sm:text-sm inline-flex items-center">
+                                        View
+                                        <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="px-4 sm:px-6 py-8 sm:py-12 text-center">
+                                    <svg class="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <p class="mt-2 text-xs sm:text-sm text-gray-500">
+                                        {% if barcode_info %}
+                                            No previous service cases for this barcode
+                                        {% else %}
+                                            No service cases found
+                                        {% endif %}
+                                    </p>
+                                    {% if barcode_info %}
+                                    <a href="{% url 'create_service_case_barcode' barcode_id=barcode_info.barcode.id %}" class="mt-3 inline-block btn-primary text-white px-4 sm:px-6 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all">
+                                        Create First Service Case
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'create_service_case' %}" class="mt-3 inline-block btn-primary text-white px-4 sm:px-6 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all">
+                                        Create Service Case
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="mt-3 sm:mt-4 flex items-center justify-between">
+            <div class="text-[10px] sm:text-xs text-gray-700">
+                Showing <span class="font-bold">{{ page_obj.start_index }}</span> to <span class="font-bold">{{ page_obj.end_index }}</span> of <span class="font-bold">{{ page_obj.paginator.count }}</span> results
+            </div>
+            <div class="flex gap-1 sm:gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if serial_number %}&serial_number={{ serial_number }}{% endif %}{% if case_id %}&case_id={{ case_id }}{% endif %}{% if technician %}&technician={{ technician }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}" class="px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg text-[10px] sm:text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">Previous</a>
+                {% endif %}
+                <span class="px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg bg-purple-50 text-[10px] sm:text-xs font-bold text-purple-700">{{ page_obj.number }}</span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if serial_number %}&serial_number={{ serial_number }}{% endif %}{% if case_id %}&case_id={{ case_id }}{% endif %}{% if technician %}&technician={{ technician }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}" class="px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg text-[10px] sm:text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function exportToExcel() {
+    // Get the table
+    const table = document.getElementById('serviceTable');
+    if (!table) {
+        alert('Table not found!');
+        return;
+    }
+
+    // Get all rows
+    const rows = table.querySelectorAll('tr');
+
+    // Build CSV content
+    let csvContent = [];
+
+    // Add headers
+    const headers = [];
+    rows[0].querySelectorAll('th').forEach(th => {
+        // Only include visible columns
+        if (!th.classList.contains('hidden') && !th.classList.contains('hidden-sm') &&
+            !th.classList.contains('hidden-md') && !th.classList.contains('hidden-lg')) {
+            headers.push('"' + th.textContent.trim() + '"');
+        }
+    });
+    csvContent.push(headers.join(','));
+
+    // Add data rows
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.querySelectorAll('td');
+
+        const rowData = [];
+        cells.forEach((cell, index) => {
+            // Get the corresponding header to check if column is visible
+            const headersArr = rows[0].querySelectorAll('th');
+            if (headersArr[index] && !headersArr[index].offsetParent) {
+                return; // Skip hidden columns
+            }
+
+            // Get text content and clean it
+            let text = cell.textContent.trim();
+
+            // Handle status badges
+            const statusBadge = cell.querySelector('span');
+            if (statusBadge) {
+                text = statusBadge.textContent.trim();
+            }
+
+            // Handle links
+            const link = cell.querySelector('a');
+            if (link && cell.textContent.trim() === 'View') {
+                text = ''; // Skip action column
+            }
+
+            // Escape quotes and wrap in quotes
+            text = text.replace(/"/g, '""');
+            rowData.push('"' + text + '"');
+        });
+
+        // Skip empty rows (like action column)
+        if (rowData.filter(cell => cell !== '""').length > 0) {
+            csvContent.push(rowData.join(','));
+        }
+    }
+
+    // Create CSV file
+    const csvString = csvContent.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+
+    // Create download link
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    // Generate filename with timestamp
+    const date = new Date();
+    const timestamp = date.toISOString().slice(0, 10);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `service_cases_${timestamp}.csv`);
+    link.style.visibility = 'hidden';
+
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+{% endblock %}

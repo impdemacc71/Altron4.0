@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load form_tags %}
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold gradient-text mb-2">Create New Batch</h1>
+            <p class="text-gray-600 text-base sm:text-lg">Generate a new batch of barcodes</p>
+        </div>
+        <a href="{% url 'batch_list' %}" class="btn-secondary text-white px-5 py-2.5 rounded-xl font-medium inline-flex items-center space-x-2 text-sm sm:text-base">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Back</span>
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card p-4 sm:p-8">
+        <form method="post" id="batch-form" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Basic Fields -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div class="space-y-1.5">
+                    <label for="{{ form.spec_template.id_for_label }}" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Template
+                    </label>
+                    {{ form.spec_template|add_class:"w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base" }}
+                    {% if form.spec_template.errors %}
+                        <p class="text-xs sm:text-sm text-red-600">{{ form.spec_template.errors.as_text }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="id_sku" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        SKU
+                    </label>
+                    {{ form.sku|add_class:"w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base" }}
+                    {% if form.sku.errors %}
+                        <p class="text-xs sm:text-sm text-red-600">{{ form.sku.errors.as_text }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="id_prefix" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                        </svg>
+                        Prefix (Auto)
+                    </label>
+                    <input type="text" id="id_prefix" name="prefix" readonly value="{{ form.instance.sku.code|default:'' }}" class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-600 text-sm sm:text-base">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="id_batch_date" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Date
+                    </label>
+                    {{ form.batch_date|add_class:"w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base" }}
+                    {% if form.batch_date.errors %}
+                        <p class="text-xs sm:text-sm text-red-600">{{ form.batch_date.errors.as_text }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="id_quantity" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                        </svg>
+                        Quantity
+                    </label>
+                    {{ form.quantity|add_class:"w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base" }}
+                    {% if form.quantity.errors %}
+                        <p class="text-xs sm:text-sm text-red-600">{{ form.quantity.errors.as_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Dynamic Fields -->
+            <div id="dynamic-fields" class="space-y-4 sm:space-y-6">
+                <h3 class="text-lg sm:text-xl font-bold gradient-text flex items-center">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Specifications
+                </h3>
+                {% include 'inventory/create_batch_dynamic_fields.html' with form=form %}
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <button type="submit" class="flex-1 btn-primary text-white py-3 px-6 rounded-xl font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                    <span>Create Batch</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('batch-form');
+        const skuSelect = document.getElementById('id_sku');
+        const prefixField = document.getElementById('id_prefix');
+        const templateSelect = document.getElementById('id_spec_template');
+        const dynamicFieldsContainer = document.getElementById('dynamic-fields');
+
+        function updatePrefix() {
+            const selectedOption = skuSelect.options[skuSelect.selectedIndex];
+            prefixField.value = selectedOption.value ? selectedOption.text.trim() : '';
+        }
+
+        function updateDynamicFields() {
+            const currentValues = {};
+            dynamicFieldsContainer.querySelectorAll('input, select, textarea').forEach(field => {
+                currentValues[field.name] = field.value;
+            });
+
+            const formData = new FormData(form);
+
+            fetch("{% url 'create_batch' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newDynamicFields = doc.getElementById('dynamic-fields');
+
+                if (newDynamicFields) {
+                    dynamicFieldsContainer.innerHTML = newDynamicFields.innerHTML;
+
+                    // Restore values
+                    Object.entries(currentValues).forEach(([name, value]) => {
+                        const field = dynamicFieldsContainer.querySelector(`[name="${name}"]`);
+                        if (field) field.value = value;
+                    });
+
+                    // Reattach listeners
+                    if (typeof window.setupDynamicFieldListeners === 'function') {
+                        window.setupDynamicFieldListeners();
+                    }
+                }
+            })
+            .catch(error => console.error('Error updating dynamic fields:', error));
+        }
+
+        skuSelect.addEventListener('change', updatePrefix);
+        templateSelect.addEventListener('change', updateDynamicFields);
+
+        updatePrefix();
+    });
+</script>
+{% endblock %}

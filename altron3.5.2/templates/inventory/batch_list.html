@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold gradient-text mb-2">Batch Management</h1>
+            <p class="text-gray-600 text-base sm:text-lg">View and manage production batches</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <a href="{% url 'barcode_module' %}" class="btn-secondary text-white px-4 py-2.5 rounded-xl font-medium inline-flex items-center justify-center space-x-2 text-sm sm:text-base">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span>Back</span>
+            </a>
+            <a href="{% url 'create_batch' %}" class="btn-primary text-white px-4 py-2.5 rounded-xl font-medium inline-flex items-center justify-center space-x-2 text-sm sm:text-base">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                <span>New Batch</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card p-4 sm:p-6">
+        <h3 class="text-lg sm:text-xl font-bold gradient-text mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+            </svg>
+            Filter Batches
+        </h3>
+        <form method="GET" action="{% url 'batch_list' %}" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="space-y-1.5">
+                    <label for="sku_code" class="block text-xs sm:text-sm font-semibold text-gray-700">SKU Code</label>
+                    <input type="text" id="sku_code" name="sku_code"
+                           value="{{ sku_code|default_if_none:'' }}"
+                           placeholder="e.g., XYZ123"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="from_date" class="block text-xs sm:text-sm font-semibold text-gray-700">From Date</label>
+                    <input type="date" id="from_date" name="from_date"
+                           value="{{ from_date|default_if_none:'' }}"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="to_date" class="block text-xs sm:text-sm font-semibold text-gray-700">To Date</label>
+                    <input type="date" id="to_date" name="to_date"
+                           value="{{ to_date|default_if_none:'' }}"
+                           class="w-full px-3 py-2 sm:px-4 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base">
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 items-end">
+                    <button type="submit" class="flex-1 btn-primary text-white py-2.5 px-4 rounded-xl font-medium text-sm sm:text-base">
+                        Apply
+                    </button>
+                    <a href="{% url 'batch_list' %}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2.5 px-4 rounded-xl font-medium text-center text-sm sm:text-base transition-colors">
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Batches Table Card -->
+    <div class="card p-4 sm:p-6 overflow-hidden">
+        <h3 class="text-lg sm:text-xl font-bold gradient-text mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            Batch Records
+        </h3>
+        <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <div class="inline-block min-w-full align-middle">
+                <div class="overflow-hidden rounded-xl border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gradient-to-r from-purple-50 to-indigo-50">
+                            <tr>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">SKU</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Date</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden sm:table-cell">Quantity</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden md:table-cell">Attachment</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for batch in batches %}
+                            <tr class="hover:bg-purple-50 transition-colors">
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                    <div class="text-xs sm:text-sm font-medium text-gray-900">{{ batch.sku.code }}</div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                    <div class="text-xs sm:text-sm text-gray-600">{{ batch.batch_date|date:"Y-m-d" }}</div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
+                                    <div class="text-xs sm:text-sm text-gray-600">{{ batch.quantity }}</div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden md:table-cell">
+                                    {% if batch.feature_spec %}
+                                        <a href="{{ batch.feature_spec }}" target="_blank" class="text-purple-600 hover:text-purple-800 font-medium text-xs sm:text-sm inline-flex items-center">
+                                            View
+                                            <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                        </a>
+                                    {% else %}
+                                        <span class="text-gray-400 text-xs sm:text-sm">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                    <a href="{% url 'barcode_list' batch.id %}" class="text-purple-600 hover:text-purple-800 font-medium text-xs sm:text-sm inline-flex items-center">
+                                        Barcodes
+                                        <svg class="w-3 h-3 sm:w-4 sm:h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-12 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                                    </svg>
+                                    <p class="mt-2 text-sm text-gray-500">No batches found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

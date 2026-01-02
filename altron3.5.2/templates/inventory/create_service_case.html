@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold gradient-text mb-2">Create Service Case</h1>
+            <p class="text-gray-600 text-sm sm:text-base">Record service details and actions taken</p>
+        </div>
+        <a href="{% url 'service_module' %}" class="btn-secondary text-white px-3 sm:px-4 py-2 rounded-xl font-medium inline-flex items-center space-x-2 text-xs sm:text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Cancel</span>
+        </a>
+    </div>
+
+    <!-- Pre-filled Info (if coming from search) -->
+    {% if barcode %}
+    <div class="card p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-100">
+        <h3 class="text-sm sm:text-base font-bold text-gray-900 mb-2 sm:mb-3">System Information</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <div>
+                <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Serial Number</p>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode.sequence_number }}</p>
+            </div>
+            <div>
+                <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">SKU</p>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode.sku.code }}</p>
+            </div>
+            <div>
+                <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Batch</p>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode.batch.prefix }}</p>
+            </div>
+            <div>
+                <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Batch Date</p>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">{{ barcode.batch.batch_date|date:"Y-m-d" }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Service Case Form -->
+    <div class="card p-4 sm:p-6 lg:p-8">
+        <form method="post" enctype="multipart/form-data" class="space-y-4 sm:space-y-6">
+            {% csrf_token %}
+
+            <!-- Hidden fields for barcode and test -->
+            <input type="hidden" name="barcode_id" value="{% if barcode %}{{ barcode.id }}{% endif %}">
+            <input type="hidden" name="test_id" value="{% if test %}{{ test.id }}{% endif %}">
+
+            <!-- Basic Information -->
+            <div class="space-y-3 sm:space-y-4">
+                <h3 class="text-base sm:text-lg font-bold gradient-text">Service Information</h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div class="space-y-1.5">
+                        <label for="service_date" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                            <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Service Date *
+                        </label>
+                        <input
+                            type="date"
+                            id="service_date"
+                            name="service_date"
+                            required
+                            value="{% now 'Y-m-d' %}"
+                            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base"
+                        >
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="technician_name" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                            <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Technician Name *
+                        </label>
+                        <input
+                            type="text"
+                            id="technician_name"
+                            name="technician_name"
+                            required
+                            placeholder="Enter technician name"
+                            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issue Description -->
+            <div class="space-y-1.5">
+                <label for="issue_description" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                    <svg class="w-4 h-4 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Issue Description *
+                </label>
+                <textarea
+                    id="issue_description"
+                    name="issue_description"
+                    required
+                    rows="3"
+                    placeholder="Describe the issue reported by the customer..."
+                    class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base resize-none"
+                ></textarea>
+            </div>
+
+            <!-- Actions Taken -->
+            <div class="space-y-1.5">
+                <label for="actions_taken" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                    <svg class="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Actions Taken *
+                </label>
+                <textarea
+                    id="actions_taken"
+                    name="actions_taken"
+                    required
+                    rows="3"
+                    placeholder="Describe the actions taken during service..."
+                    class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base resize-none"
+                ></textarea>
+            </div>
+
+            <!-- Additional Fields -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div class="space-y-1.5">
+                    <label for="status" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Case Status
+                    </label>
+                    <select
+                        id="status"
+                        name="status"
+                        class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base bg-white"
+                    >
+                        <option value="open" selected>Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="attachment" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                        <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                        </svg>
+                        Attachment
+                    </label>
+                    <input
+                        type="file"
+                        id="attachment"
+                        name="attachment"
+                        accept="image/*,.pdf"
+                        class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                    >
+                </div>
+            </div>
+
+            <!-- Remarks -->
+            <div class="space-y-1.5">
+                <label for="remarks" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                    <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                    </svg>
+                    Remarks (Optional)
+                </label>
+                <textarea
+                    id="remarks"
+                    name="remarks"
+                    rows="2"
+                    placeholder="Additional notes or observations..."
+                    class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base resize-none"
+                ></textarea>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <button type="submit" class="flex-1 btn-primary text-white py-3 px-6 rounded-xl font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Create Service Case</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

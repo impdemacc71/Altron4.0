@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Service Case Report - {{ service_case.case_id }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin-top: 3cm;
+            margin-bottom: 3.5cm;
+            margin-left: 0cm;
+            margin-right: 0cm;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            background: #fff;
+        }
+
+        .header,
+        .footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            text-align: center;
+            width: 100%;
+        }
+
+        .header {
+            top: -2.8cm;
+        }
+
+        .footer {
+            bottom: -3.3cm;
+        }
+
+        .header img,
+        .footer img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        .content {
+            padding: 0 15px;
+            box-sizing: border-box;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+            text-align: center;
+        }
+
+        .case-header {
+            background: #f0f0f0;
+            padding: 15px;
+            border: 2px solid #000;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .case-id {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+
+        .case-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
+        .status-open { background-color: #dbeafe; color: #1e40af; }
+        .status-in_progress { background-color: #fef3c7; color: #92400e; }
+        .status-completed { background-color: #d1fae5; color: #065f46; }
+        .status-on_hold { background-color: #f3f4f6; color: #374151; }
+        .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .info-item {
+            padding: 10px;
+            border: 1px solid #000;
+            background: #f9f9f9;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: #666;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .detail-section {
+            margin: 15px 0;
+        }
+
+        .detail-box {
+            padding: 12px;
+            border: 1px solid #000;
+            background: #f9f9f9;
+            margin-top: 8px;
+        }
+
+        .detail-box.issue {
+            border-left: 4px solid #dc2626;
+            background: #fef2f2;
+        }
+
+        .detail-box.actions {
+            border-left: 4px solid #059669;
+            background: #ecfdf5;
+        }
+
+        .detail-box.remarks {
+            border-left: 4px solid #2563eb;
+            background: #eff6ff;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+
+        .section-content {
+            font-size: 11px;
+            color: #333;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .metadata {
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 2px solid #000;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .no-data {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ header_url }}" alt="Header Image">
+    </div>
+
+    <div class="footer">
+        <img src="{{ footer_url }}" alt="Footer Image">
+    </div>
+
+    <div class="content">
+        <div class="section-title">SERVICE CASE REPORT</div>
+
+        <!-- Case Header -->
+        <div class="case-header">
+            <div class="case-id">{{ service_case.case_id }}</div>
+            <span class="case-status status-{{ service_case.status }}">
+                {{ service_case.get_status_display }}
+            </span>
+        </div>
+
+        <!-- System Information (if barcode available) -->
+        {% if service_case.barcode %}
+        <div class="detail-section">
+            <div class="section-label">SYSTEM INFORMATION</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Serial Number</div>
+                    <div class="info-value">{{ service_case.barcode.sequence_number }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">SKU</div>
+                    <div class="info-value">{{ service_case.barcode.sku.code }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Batch Prefix</div>
+                    <div class="info-value">{{ service_case.barcode.batch.prefix }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Batch Date</div>
+                    <div class="info-value">{{ service_case.barcode.batch.batch_date|date:"Y-m-d" }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Service Details -->
+        <div class="detail-section">
+            <div class="section-label">SERVICE DETAILS</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Service Date</div>
+                    <div class="info-value">{{ service_case.service_date|date:"Y-m-d" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Technician</div>
+                    <div class="info-value">{{ service_case.technician_name }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Issue Description -->
+        <div class="detail-section">
+            <div class="section-label">ISSUE DESCRIPTION</div>
+            <div class="detail-box issue">
+                <div class="section-content">{{ service_case.issue_description }}</div>
+            </div>
+        </div>
+
+        <!-- Actions Taken -->
+        <div class="detail-section">
+            <div class="section-label">ACTIONS TAKEN</div>
+            <div class="detail-box actions">
+                <div class="section-content">{{ service_case.actions_taken }}</div>
+            </div>
+        </div>
+
+        <!-- Remarks (if available) -->
+        {% if service_case.remarks %}
+        <div class="detail-section">
+            <div class="section-label">REMARKS</div>
+            <div class="detail-box remarks">
+                <div class="section-content">{{ service_case.remarks }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Linked Test Information (if available) -->
+        {% if service_case.test %}
+        <div class="detail-section">
+            <div class="section-label">LINKED TEST INFORMATION</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Test ID</div>
+                    <div class="info-value">#{{ service_case.test.id }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Test Date</div>
+                    <div class="info-value">{{ service_case.test.test_date|date:"Y-m-d" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Overall Status</div>
+                    <div class="info-value">
+                        {% if service_case.test.overall_status == 'passed' %}PASSED
+                        {% elif service_case.test.overall_status == 'failed' %}FAILED
+                        {% else %}PENDING{% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Tested By</div>
+                    <div class="info-value">{{ service_case.test.tested_by }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Metadata -->
+        <div class="metadata">
+            <div class="metadata-grid">
+                <div>
+                    <strong>Created By:</strong> {{ service_case.created_by.username|default:"System" }}
+                </div>
+                <div>
+                    <strong>Created At:</strong> {{ service_case.created_at|date:"Y-m-d H:i" }}
+                </div>
+                <div>
+                    <strong>Last Updated:</strong> {{ service_case.updated_at|date:"Y-m-d H:i" }}
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-size: 9px; color: #999;">
+                Report Generated: {% now "Y-m-d H:i:s" %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

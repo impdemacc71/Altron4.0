@@ -1,0 +1,16 @@
+<div id="dynamic-fields" class="col-span-1 sm:col-span-2 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+    {% load form_tags %}
+    {% for field in form %}
+        {# Filter out the core fields already rendered in the main template #}
+        {# This line requires the 'split' filter: #}
+        {% if field.name not in 'sku,batch_date,quantity,spec_template'|split:"," and field.name != 'prefix' %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+                {{ field|add_class:"w-full p-2 border rounded-md" }}
+                {% if field.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ field.errors.as_text }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>

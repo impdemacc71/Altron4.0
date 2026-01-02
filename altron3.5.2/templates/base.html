@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soluqis QMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            min-height: 100vh;
+        }
+
+        main {
+            flex-grow: 1;
+        }
+
+        /* Modern button styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(100, 116, 139, 0.5);
+        }
+
+        /* Modern card styles */
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Navbar animation */
+        .navbar-animate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Input focus styles */
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <nav class="navbar-animate text-white shadow-2xl sticky top-0 z-50 backdrop-blur-lg bg-opacity-95">
+        <div class="container mx-auto px-2 sm:px-4 lg:px-8">
+            <div class="flex justify-between items-center py-1.5 sm:py-3 lg:py-4">
+                <a href="{% url 'dashboard' %}" class="flex items-center space-x-1.5 sm:space-x-3 group">
+                    <div class="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-white rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <span class="text-lg sm:text-xl lg:text-2xl font-bold gradient-text">S</span>
+                    </div>
+                    <span class="text-sm sm:text-xl lg:text-2xl font-extrabold tracking-tight group-hover:text-purple-200 transition-colors hidden xs:block">Soluqis QMS</span>
+                </a>
+                <div class="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+                    {% if user.is_authenticated %}
+                    <div class="hidden sm:flex items-center space-x-1.5 sm:space-x-2 lg:space-x-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-full px-2 sm:px-3 lg:px-4 py-1 sm:py-2">
+                        <div class="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 bg-white rounded-full flex items-center justify-center">
+                            <span class="text-[9px] sm:text-xs lg:text-sm font-bold gradient-text">{{ user.username|first|upper }}</span>
+                        </div>
+                        <div class="text-[9px] sm:text-xs lg:text-sm">
+                            <span class="font-semibold">{{ user.username }}</span>
+                            <span class="mx-0.5 sm:mx-1">•</span>
+                            <span class="capitalize text-purple-200">{{ user.role }}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'logout' %}" class="px-2.5 py-1 sm:px-4 sm:py-2 lg:px-5 lg:py-2.5 rounded-full bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 transition-all duration-300 font-medium shadow-lg hover:shadow-xl text-[10px] sm:text-xs lg:text-sm">
+                        Logout
+                    </a>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="px-2.5 py-1 sm:px-4 sm:py-2 lg:px-5 lg:py-2.5 rounded-full bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 transition-all duration-300 font-medium shadow-lg hover:shadow-xl text-[10px] sm:text-xs lg:text-sm">
+                        Login
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="bg-gradient-to-r from-slate-800 to-slate-900 text-white text-center py-3 sm:py-6 lg:py-8 mt-auto shadow-inner">
+        <div class="container mx-auto px-2 sm:px-4 lg:px-8">
+            <div class="flex flex-col sm:flex-row justify-center items-center space-y-1 sm:space-y-0 sm:space-x-4">
+                <p class="text-[10px] sm:text-xs lg:text-sm text-slate-300">&copy; {{ "now"|date:"Y" }} Soluqis. All rights reserved.</p>
+                <span class="hidden sm:inline text-slate-500">•</span>
+                <p class="text-[9px] sm:text-[10px] lg:text-xs text-slate-400">Quality Management System</p>
+            </div>
+        </div>
+    </footer>
+
+{% if user.is_authenticated %}
+<script>
+    let activityTimer;
+    const keepAliveInterval = 60000;
+    const keepAliveURL = "{% url 'session_keep_alive' %}";
+
+    function resetActivityTimer() {
+        clearTimeout(activityTimer);
+        activityTimer = setTimeout(() => {
+            fetch(keepAliveURL)
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Session refreshed.');
+                    } else {
+                        console.error('Failed to refresh session.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing session:', error);
+                });
+        }, keepAliveInterval);
+    }
+
+    function activityDetected() {
+        resetActivityTimer();
+    }
+
+    window.addEventListener('mousemove', activityDetected, { passive: true });
+    window.addEventListener('keydown', activityDetected, { passive: true });
+    window.addEventListener('scroll', activityDetected, { passive: true });
+
+    resetActivityTimer();
+</script>
+{% endif %}
+
+</body>
+</html>

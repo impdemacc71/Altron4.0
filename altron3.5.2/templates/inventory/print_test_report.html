@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Test Report</title>
+<style>
+    @page {
+    size: A4 portrait;
+    margin-top: 3cm;   /* Reserve space for header */
+    margin-bottom: 3.5cm; /* Reserve space for footer */
+    margin-left: 0cm;
+    margin-right: 0cm;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    background: #fff;
+}
+
+    /* FIXED HEADER/FOOTER - stick exactly to page edge */
+.header,
+.footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    text-align: center;
+    width: 100%;
+}
+
+.header {
+    top: -2.8cm;
+}
+
+.footer {
+    bottom: -3.3cm; 
+}
+/* Scale images tightly to top/bottom edges */
+.header img,
+.footer img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    
+}
+
+/* Content spacing - adjust based on image height */
+.content {
+    padding: 0 15px; /* left/right padding for content */
+    box-sizing: border-box;
+}
+
+    .section {
+        margin-bottom: 15px;
+    }
+
+    .section strong {
+        display: inline-block;
+        width: 150px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        page-break-inside: auto;
+    }
+
+    table, th, td {
+        border: 1px solid black;
+    }
+
+    th, td {
+        padding: 6px;
+        text-align: center;
+    }
+
+    thead {
+        display: table-header-group; /* ensures table header repeats on each page */
+    }
+
+    tfoot {
+        display: table-footer-group; /* optional if you have table footers */
+    }
+
+    .overall-status-span {
+        font-weight: bold;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 10px;
+    }
+
+    .overall-status-passed { background-color: #d1fae5; color: #065f46; }
+    .overall-status-failed { background-color: #fee2e2; color: #991b1b; }
+    .overall-status-pending { background-color: #fff3cd; color: #92400e; }
+
+</style>
+</head>
+<body>
+    {% load inventory_tags %}
+
+    <div class="header">
+        <img src="{{ header_url }}" alt="Header Image">
+    </div>
+
+    <div class="footer">
+        <img src="{{ footer_url }}" alt="Footer Image">
+    </div>
+
+    <div class="content">
+        <div class="section">
+            <strong>Barcode Sequence:</strong> {{ test.barcode.sequence_number }}<br>
+            <strong>Batch:</strong> {{ test.batch.prefix }} ({{ test.batch.batch_date }})<br>
+            <strong>Tester:</strong> {{ test.user.username }}<br>
+            <strong>Test Time:</strong> {{ test.test_date|date:"F d, Y H:i" }}<br>
+            <strong>Overall Status:</strong>
+            <span class="overall-status-span
+                {% if test.overall_status == 'passed' %}overall-status-passed
+                {% elif test.overall_status == 'failed' %}overall-status-failed
+                {% else %}overall-status-pending{% endif %}">
+                {{ test.overall_status|capitalize }}
+            </span><br>
+            <strong>Remarks:</strong> {{ test.remarks|default:"-" }}
+        </div>
+
+        <div class="section-title">Question Details</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Question</th>
+                    <th style="width: 15%;">Status</th>
+                    <th style="width: 15%;">Technical Output</th>
+                    <th style="width: 30%;">Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for answer in test_answers %}
+                <tr>
+                    <td style="text-align: left;">{{ answer.question.question_text }}</td>
+                    <td>
+                        <span class="overall-status-span
+                            {% if answer.is_passed %}overall-status-passed
+                            {% else %}overall-status-failed{% endif %}">
+                            {{ answer.is_passed|yesno:"Passed,Failed" }}
+                        </span>
+                    </td>
+                    <td>{{ answer.technical_output|default:"-" }}</td>
+                    <td style="text-align: left;">{{ answer.remarks|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No answers available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

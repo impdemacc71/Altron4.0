@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: 101mm auto;
+            margin: 0;
+        }
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .label-row {
+            display: flex;
+            margin-bottom: 3mm;
+        }
+        .label {
+            width: 50mm;
+            height: 35mm;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            padding: 3mm;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .barcode {
+            width: 100%;
+            height: auto;
+        }
+        .text-block {
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+    {% for barcode in barcodes %}
+        {% if forloop.first or forloop.counter0|divisibleby:2 %}
+        <div class="label-row">
+        {% endif %}
+
+        <div class="label">
+            <div class="text-block">
+                <strong>Device:</strong> {{ barcode.batch.device_name }}<br>
+                <strong>Battery:</strong> {{ barcode.batch.battery }}<br>
+                <strong>Capacity:</strong> {{ barcode.batch.capacity }}<br>
+
+                {% if barcode.batch.mppt_cap or barcode.batch.voc_max or barcode.batch.ef %}
+                <span>
+                    {% if barcode.batch.mppt_cap %}MPPT: {{ barcode.batch.mppt_cap }}{% endif %}
+                    {% if barcode.batch.voc_max %} | Voc: {{ barcode.batch.voc_max }}{% endif %}
+                    {% if barcode.batch.ef %} | EF: {{ barcode.batch.ef }}{% endif %}
+                </span><br>
+                {% endif %}
+            </div>
+
+            <img src="{{ barcode.barcode_image.url }}" class="barcode">
+            <div><strong>Serial:</strong> {{ barcode.sequence_number }}</div>
+        </div>
+
+        {% if forloop.counter|divisibleby:2 or forloop.last %}
+        </div>
+        {% endif %}
+    {% endfor %}
+</body>
+</html>

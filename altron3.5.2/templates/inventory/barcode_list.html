@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load inventory_tags %}
+{% block content %}
+<div class="bg-gray-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8 font-sans"> {# Added background color, min-height, and increased padding #}
+    <div class="max-w-7xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-200"> {# Centered content, rounded corners, subtle border #}
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"> {# Improved button alignment for responsiveness #}
+            <h2 class="text-3xl font-extrabold text-blue-800 tracking-tight">
+                Barcodes for Batch: <span class="text-blue-600">{{ batch.prefix }}</span> ({{ batch.batch_date }})
+            </h2> {# Larger, bolder title with batch details highlighted #}
+            <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto"> {# Flex container for buttons, responsive stacking #}
+                {# Back to Batch List Button #}
+                <a href="{% url 'batch_list' %}" class="inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-150 ease-in-out">
+                    Back to Batch List
+                </a>
+                {# Print All Barcodes Button #}
+                <a href="{% url 'print_barcodes' batch.id %}" class="inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+                    Print All Barcodes
+                </a>
+                {# Download PDF Button #}
+                <a href="{% url 'print_barcodes_pdf' batch.id %}" target="_blank" class="inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                    Download PDF
+                </a>
+            </div>
+        </div>
+
+        {# Batch Details Summary - Now Dynamically Displays Template Specs #}
+        <div class="mb-8 p-6 bg-blue-50 rounded-lg shadow-inner border border-blue-200 text-blue-800">
+            <h3 class="text-xl font-semibold mb-3">Batch Details (Template: {{ batch.spec_template.name|default:"None" }}):</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-2 gap-x-6 text-base">
+                
+                {# Always show fixed fields #}
+                <p><strong>SKU:</strong> {{ batch.sku.code }}</p>
+                <p><strong>Prefix:</strong> {{ batch.prefix }}</p>
+                <p><strong>Batch Date:</strong> {{ batch.batch_date }}</p>
+
+                {% if batch.spec_template.fields_json %}
+                    {# Loop through fields required by the selected template #}
+                    {% for field_name in batch.spec_template.fields_json %}
+                        {# Use the custom template tag 'attr' (or get_field) to access the field value on the model instance #}
+                        {% with field_value=batch|attr:field_name %}
+                            {% if field_value %}
+                                <p>
+                                    {# Look up the human-readable label using the spec_field_map passed from the view #}
+                                    <strong>{{ spec_field_map|attr:field_name }}:</strong> {{ field_value }}
+                                </p>
+                            {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                {% endif %}
+
+                {# Add Feature/Spec and EF if they are not explicitly in the template but were filled #}
+                {% if batch.feature_spec and 'feature_spec' not in batch.spec_template.fields_json %}
+                    <p><strong>Feature/Spec:</strong> {{ batch.feature_spec }}</p>
+                {% endif %}
+                {% if batch.ef and 'ef' not in batch.spec_template.fields_json %}
+                    <p><strong>EF:</strong> {{ batch.ef }}</p>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <!-- Barcode Filter Form -->
+        <div class="mb-8 p-6 bg-gray-100 rounded-lg shadow-inner border border-gray-200">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Filter Barcodes</h3>
+            <form method="GET" action="{% url 'barcode_list' batch.id %}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+                <div>
+                    <label for="barcode_number" class="block text-sm font-medium text-gray-700 mb-1">Barcode Number:</label> {# Changed label #}
+                    <input type="text" id="barcode_number" name="barcode_number" {# Changed name attribute #}
+                           value="{{ barcode_number|default_if_none:'' }}" {# Changed variable name for sticky filter #}
+                           placeholder="e.g., 1234567890" {# Changed placeholder #}
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2.5 px-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div class="col-span-1 sm:col-span-2 lg:col-span-1 flex flex-col sm:flex-row gap-3">
+                    <button type="submit" class="w-full sm:w-1/2 bg-blue-600 text-white py-2.5 px-4 rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                        Apply Filter
+                    </button>
+                    <a href="{% url 'barcode_list' batch.id %}" class="w-full sm:w-1/2 bg-gray-400 text-white py-2.5 px-4 rounded-lg shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition duration-150 ease-in-out text-center inline-flex items-center justify-center">
+                        Clear Filter
+                    </a>
+                </div>
+            </form>
+        </div>
+        <!-- End Barcode Filter Form -->
+
+        {# Barcode List - Now a responsive table #}
+        <h3 class="text-2xl font-semibold text-gray-800 mb-6">Individual Barcodes:</h3>
+        <div class="overflow-x-auto shadow-md rounded-lg border border-gray-200">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="py-3.5 px-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider rounded-tl-lg">SKU</th>
+                        <th class="py-3.5 px-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Barcode Number</th>
+                        <th class="py-3.5 px-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider rounded-tr-lg">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for barcode in page_obj %}
+                    <tr class="hover:bg-gray-50 transition duration-100 ease-in-out">
+                        <td class="py-3 px-4 text-sm text-gray-900 whitespace-nowrap">{{ barcode.sku.code }}</td> {# Display SKU code #}
+                        <td class="py-3 px-4 text-sm text-gray-900 whitespace-nowrap">{{ barcode.sequence_number }}</td>
+                        <td class="py-3 px-4 text-sm whitespace-nowrap">
+                            <a href="{% url 'print_single_barcode' batch.id barcode.id %}" class="text-blue-600 hover:text-blue-800 hover:underline font-medium">Print Barcode</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="py-6 px-4 text-center text-gray-500 text-base">No barcodes found for this batch matching the filter.</td> {# Adjusted colspan #}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination controls -->
+        <div class="mt-10 flex justify-center space-x-2"> {# Increased top margin #}
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if barcode_number %}&barcode_number={{ barcode_number }}{% endif %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">Previous</a> {# Modernized button styling, preserved barcode_number filter #}
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number|add:'-2' <= num and num <= page_obj.number|add:'2' %} {# Show current page and 2 pages around it #}
+                    {% if num == page_obj.number %}
+                        <span class="px-4 py-2 bg-blue-800 text-white rounded-lg font-bold text-sm shadow-md">{{ num }}</span> {# Highlight current page #}
+                    {% else %}
+                        <a href="?page={{ num }}{% if barcode_number %}&barcode_number={{ barcode_number }}{% endif %}" class="px-4 py-2 bg-blue-200 text-blue-800 rounded-lg hover:bg-blue-300 transition text-sm font-medium">{{ num }}</a> {# Styled other pages, preserved barcode_number filter #}
+                    {% endif %}
+                {% elif num == 1 or num == page_obj.paginator.num_pages %} {# Always show first and last page #}
+                    <a href="?page={{ num }}{% if barcode_number %}&barcode_number={{ barcode_number }}{% endif %}" class="px-4 py-2 bg-blue-200 text-blue-800 rounded-lg hover:bg-blue-300 transition text-sm font-medium">{{ num }}</a> {# Preserved barcode_number filter #}
+                {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %} {# Add ellipses for skipped pages #}
+                    <span class="px-4 py-2 text-gray-500">...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if barcode_number %}&barcode_number={{ barcode_number }}{% endif %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">Next</a> {# Modernized button styling, preserved barcode_number filter #}
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

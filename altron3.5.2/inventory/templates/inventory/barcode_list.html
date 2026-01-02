@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Barcodes for Batch: {{ batch }}</h2>
+<div class="row">
+    {% for barcode in barcodes %}
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <img src="{{ barcode.barcode_image.url }}" class="card-img-top" alt="{{ barcode.sequence_number }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ barcode.sequence_number }}</h5>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <p>No barcodes found for this batch.</p>
+    {% endfor %}
+</div>
+<a href="{% url 'batch_list' %}" class="btn btn-secondary mt-3">Back to Batch List</a>
+{% endblock %}

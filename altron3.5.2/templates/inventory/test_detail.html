@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load inventory_tags %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold gradient-text mb-2">Test Report</h1>
+            <p class="text-gray-600 text-base sm:text-lg">{{ test.barcode.sequence_number }}</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <a href="{% url 'test_results' %}" class="btn-secondary text-white px-4 py-2.5 rounded-xl font-medium inline-flex items-center justify-center space-x-2 text-sm sm:text-base">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span>Back</span>
+            </a>
+            <a href="{% url 'print_test_report' test.id %}" target="_blank" class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white px-4 py-2.5 rounded-xl font-medium inline-flex items-center justify-center space-x-2 text-sm sm:text-base shadow-lg hover:shadow-xl transition-all">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                <span>Print</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Test Summary Card -->
+    <div class="card p-4 sm:p-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-100">
+        <h3 class="text-lg sm:text-xl font-bold gradient-text mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Test Summary
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-sm sm:text-base">
+            <div class="bg-white p-3 sm:p-4 rounded-xl">
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">SKU</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900">{{ test.sku.code }}</p>
+            </div>
+            <div class="bg-white p-3 sm:p-4 rounded-xl">
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">Batch</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900">{{ test.batch.prefix }}</p>
+            </div>
+            <div class="bg-white p-3 sm:p-4 rounded-xl">
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">Barcode</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900">{{ test.barcode.sequence_number }}</p>
+            </div>
+            <div class="bg-white p-3 sm:p-4 rounded-xl">
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">Test Date</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900">{{ test.test_date|date:"Y-m-d H:i" }}</p>
+            </div>
+            <div class="bg-white p-3 sm:p-4 rounded-xl">
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">Tested By</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900">{{ test.user.username|title }}</p>
+            </div>
+            <div class="bg-white p-3 sm:p-4 rounded-xl">
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">Template</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900">{{ test.template_used.name|default:"N/A" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Status Form -->
+    <div class="card p-4 sm:p-6">
+        <h3 class="text-lg sm:text-xl font-bold gradient-text mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Update Status
+        </h3>
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-2">
+                <label for="{{ form.overall_status.id_for_label }}" class="block text-xs sm:text-sm font-semibold text-gray-700">Overall Status</label>
+                {{ form.overall_status }}
+                {% if form.overall_status.errors %}
+                    <p class="mt-1 text-xs sm:text-sm text-red-600">{{ form.overall_status.errors.as_text }}</p>
+                {% endif %}
+            </div>
+            <button type="submit" class="mt-4 w-full btn-primary text-white py-3 px-6 rounded-xl font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                Save Changes
+            </button>
+        </form>
+    </div>
+
+    <!-- Detailed Results Card -->
+    <div class="card p-4 sm:p-6">
+        <h3 class="text-lg sm:text-xl font-bold gradient-text mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            Test Questions
+        </h3>
+        <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <div class="inline-block min-w-full align-middle">
+                <div class="overflow-hidden rounded-xl border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gradient-to-r from-purple-50 to-indigo-50">
+                            <tr>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Question</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider w-24 sm:w-32">Status</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider hidden sm:table-cell">Output</th>
+                                <th class="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-wider">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for answer in test_answers %}
+                            <tr class="hover:bg-purple-50 transition-colors">
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{{ answer.question.question_text }}</td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                                        {% if answer.is_passed %}bg-green-100 text-green-700
+                                        {% else %}bg-red-100 text-red-700{% endif %}">
+                                        {{ answer.is_passed|yesno:"Pass,Fail" }}
+                                    </span>
+                                </td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{{ answer.technical_output|default:"-" }}</td>
+                                <td class="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 max-w-xs truncate">{{ answer.remarks|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

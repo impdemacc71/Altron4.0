@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Service Cases Report</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin-top: 3cm;
+            margin-bottom: 3.5cm;
+            margin-left: 0cm;
+            margin-right: 0cm;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            background: #fff;
+        }
+
+        .header,
+        .footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            text-align: center;
+            width: 100%;
+        }
+
+        .header {
+            top: -2.8cm;
+        }
+
+        .footer {
+            bottom: -3.3cm;
+        }
+
+        .header img,
+        .footer img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        .content {
+            padding: 0 15px;
+            box-sizing: border-box;
+        }
+
+        .section {
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .summary-item {
+            padding: 10px;
+            border: 1px solid #000;
+            text-align: center;
+        }
+
+        .summary-item strong {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .summary-item span {
+            font-size: 11px;
+            color: #666;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            page-break-inside: auto;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            padding: 6px;
+            text-align: center;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        .status-badge {
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 10px;
+        }
+
+        .status-open { background-color: #dbeafe; color: #1e40af; }
+        .status-in_progress { background-color: #fef3c7; color: #92400e; }
+        .status-completed { background-color: #d1fae5; color: #065f46; }
+        .status-on_hold { background-color: #f3f4f6; color: #374151; }
+        .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+
+        .filter-info {
+            background: #f9fafb;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #000;
+        }
+
+        .filter-info p {
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ header_url }}" alt="Header Image">
+    </div>
+
+    <div class="footer">
+        <img src="{{ footer_url }}" alt="Footer Image">
+    </div>
+
+    <div class="content">
+        <div class="section-title">Service Cases Report</div>
+
+        <div class="filter-info">
+            <strong>Report Generated:</strong> {{ generated_at|date:"F d, Y H:i" }}
+            {% if filter_serial_number %}
+            <br><strong>Serial Number:</strong> {{ filter_serial_number }}
+            {% endif %}
+            {% if filter_technician %}
+            <br><strong>Technician:</strong> {{ filter_technician }}
+            {% endif %}
+            {% if filter_status %}
+            <br><strong>Status:</strong> {{ filter_status|title }}
+            {% endif %}
+            {% if filter_from_date %}
+            <br><strong>From Date:</strong> {{ filter_from_date }}
+            {% endif %}
+            {% if filter_to_date %}
+            <br><strong>To Date:</strong> {{ filter_to_date }}
+            {% endif %}
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-item">
+                <strong>{{ total_count }}</strong>
+                <span>Total Cases</span>
+            </div>
+            <div class="summary-item">
+                <strong>{{ completed_count }}</strong>
+                <span>Completed</span>
+            </div>
+            <div class="summary-item">
+                <strong>{{ in_progress_count }}</strong>
+                <span>In Progress</span>
+            </div>
+            <div class="summary-item">
+                <strong>{{ open_count }}</strong>
+                <span>Open</span>
+            </div>
+        </div>
+
+        <div class="section-title">Service Cases Details</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 12%;">Case ID</th>
+                    <th style="width: 18%;">Serial Number</th>
+                    <th style="width: 12%;">Service Date</th>
+                    <th style="width: 15%;">Technician</th>
+                    <th style="width: 10%;">Status</th>
+                    <th style="width: 18%;">Issue Description</th>
+                    <th style="width: 15%;">Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for case in service_cases %}
+                <tr>
+                    <td>{{ case.case_id }}</td>
+                    <td>{{ case.barcode.sequence_number|default:"N/A" }}</td>
+                    <td>{{ case.service_date|date:"Y-m-d" }}</td>
+                    <td>{{ case.technician_name }}</td>
+                    <td>
+                        <span class="status-badge status-{{ case.status }}">
+                            {{ case.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="text-align: left;">{{ case.issue_description|truncatewords:10 }}</td>
+                    <td>{{ case.created_at|date:"Y-m-d" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">No service cases found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if trends %}
+        <div class="section-title">Service Trends</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Issue Description (Top 5)</th>
+                    <th style="width: 25%;">Frequency</th>
+                    <th style="width: 25%;">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trend in trends %}
+                <tr>
+                    <td style="text-align: left;">{{ trend.issue|truncatewords:15 }}</td>
+                    <td>{{ trend.count }}</td>
+                    <td>{{ trend.percentage }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</body>
+</html>

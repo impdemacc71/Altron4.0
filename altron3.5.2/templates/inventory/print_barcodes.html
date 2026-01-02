@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Print Barcodes</title>
+    <style>
+        :root {
+            --font-size-uniform: 10pt;
+            --padding-container: 1.5mm;
+            --line-height-tight: 1.0;
+            --barcode-image-max-height: 28mm;
+        }
+
+        @page {
+            size: 100mm 35mm;
+            margin: 0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .label-wrapper {
+            display: grid;
+            grid-template-columns: 100mm;
+            gap: 0;
+            padding: 0;
+        }
+
+        .barcode-container {
+            width: 100mm;
+            height: 35mm;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            padding: 0;
+            page-break-inside: avoid;
+            break-after: always;
+            box-sizing: border-box;
+        }
+
+        .barcode-container:last-of-type {
+            break-after: auto;
+        }
+
+        /* Left Section */
+        .sticker-left-section {
+            width: 50mm;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--padding-container);
+            box-sizing: border-box;
+        }
+
+        .sticker-left-section img {
+            max-height: var(--barcode-image-max-height);
+            width: 100%;
+            object-fit: contain;
+            margin-bottom: 1mm;
+        }
+
+        .barcode-sequence-number {
+            font-size: var(--font-size-uniform);
+            font-weight: bold;
+            text-align: center;
+            margin: 0;
+            line-height: var(--line-height-tight);
+        }
+
+        /* Right Section with Table */
+        .sticker-right-section {
+            width: 50mm;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--padding-container);
+            box-sizing: border-box;
+        }
+
+        .specs-table {
+            width: 100%;
+            height: auto;
+            max-height: 29mm;
+            border-collapse: collapse;
+            font-size: var(--font-size-uniform);
+            line-height: var(--line-height-tight);
+            border: 0.5px solid #333;
+            /* CRITICAL FIX: Force fixed layout for PDF generation */
+            table-layout: fixed; 
+        }
+
+        .specs-table td {
+            border: 0.5px solid #333;
+            padding: 0.1mm;
+            text-align: center;
+            font-weight: bold;
+            vertical-align: middle;
+            height: 3.8mm;
+        }
+
+        /* Device name row - merged columns */
+        .device-name-cell {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-align: center;
+            height: 4.2mm;
+        }
+
+        /* Parameter labels - CRITICAL FIX: Ensure width is set and left-aligned */
+        .param-label {
+            background-color: #f8f8f8;
+            font-weight: bold;
+            text-align: left; 
+            /* Width is defined by <col> tag */
+            font-size: 8pt; 
+            padding-left: 1mm;
+        }
+
+        /* Parameter values */
+        .param-value {
+            font-weight: bold;
+            text-align: center;
+            /* Width is defined by <col> tag */
+            font-size: 10pt;
+        }
+
+        /* Sequence number row - merged columns */
+        .sequence-cell {
+            background-color: #e8e8e8;
+            font-weight: bold;
+            text-align: center;
+            height: 4.2mm;
+        }
+
+        /* Responsive text sizing for long device names */
+        .device-name-text {
+            font-size: 10pt;
+            word-break: break-word;
+        }
+
+        /* Compact sequence text */
+        .sequence-text {
+            font-size: 7.5pt;
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    {% load inventory_tags %}
+    <div class="label-wrapper">
+        {% for barcode in barcodes %}
+        <div class="barcode-container">
+
+            <div class="sticker-left-section">
+                <img src="{% url 'barcode_image' barcode.sequence_number %}" alt="{{ barcode.sequence_number }}">
+                <p class="barcode-sequence-number">{{ barcode.sequence_number }}</p>
+            </div>
+
+            <div class="sticker-right-section">
+                
+                <table class="specs-table">
+                    
+                    {# CRITICAL FIX: Define Column Groups explicitly to force two columns #}
+                    <colgroup>
+                        <col style="width: 50%;">
+                        <col style="width: 50%;">
+                    </colgroup>
+                    
+                    {# 1. RENDER DEVICE NAME AS THE HEADER (Always renders first if it's required) #}
+                    {% with device_name_value=barcode.batch|attr:"device_name" %}
+                        <tr>
+                            <td colspan="2" class="device-name-cell">
+                                <span class="device-name-text">
+                                    {% if "device_name" in barcode.batch.spec_template.fields_json %}
+                                        {# Device Name is SINE KELVIN 40 #}
+                                        {{ device_name_value|default:barcode.batch.sku.code }}
+                                    {% else %}
+                                        {{ barcode.batch.sku.code }} - Specs
+                                    {% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endwith %}
+
+                    {# 2. DYNAMICALLY GENERATE ROWS for ALL FIELDS (including Battery, System Cap, etc.) #}
+                    {% with template_fields=barcode.batch.spec_template.fields_json %}
+                        
+                        {% for field_name in template_fields %}
+                            
+                            {# Skip device_name as it was already handled as the header #}
+                            {% if field_name != "device_name" %}
+                                {% with field_value=barcode.batch|attr:field_name %}
+                                    {# Render every row required by the template #}
+                                    <tr>
+                                        {# This cell is 50% width and prints the LABEL #}
+                                        <td class="param-label">{{ spec_field_map|dict_get:field_name }}</td>
+                                        
+                                        {# This cell is 50% width and prints the VALUE #}
+                                        <td class="param-value">{{ field_value|default:"-" }}</td>
+                                    </tr>
+                                {% endwith %}
+                            {% endif %}
+                        {% endfor %}
+
+                    {% endwith %}
+
+                    {# 3. Sequence Number (Always last) #}
+                    <tr>
+                        <td colspan="2" class="sequence-cell sequence-text">{{ barcode.sequence_number }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
