@@ -7,13 +7,14 @@ from django.contrib.auth.models import AbstractUser
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
         ('admin', 'Admin'),
+        ('batch', 'Batch Generation'),
         ('tester', 'Tester'),
         ('service', 'Service'),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tester')
 
     def __str__(self):
-        return f"{self.username} ({self.role})"
+        return f"{self.username} ({self.get_role_display()})"
 
 class SKU(models.Model):
     code = models.CharField(max_length=10, unique=True)

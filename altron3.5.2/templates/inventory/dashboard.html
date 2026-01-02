@@ -4,7 +4,7 @@
     <!-- Header Section -->
     <div class="text-center sm:text-left">
         <h1 class="text-2xl sm:text-3xl lg:text-5xl font-extrabold gradient-text mb-1 sm:mb-3">Dashboard</h1>
-        <p class="text-sm sm:text-base lg:text-lg text-gray-600">Welcome back, {{ user.username|title }}! Choose an option below to get started.</p>
+        <p class="text-sm sm:text-base lg:text-lg text-gray-600">Welcome back, {{ user.username|title }}! <span class="font-semibold text-purple-600">({{ user.get_role_display }})</span></p>
     </div>
 
     <!-- Quick Stats Cards -->
@@ -68,7 +68,7 @@
 
     <!-- Main Action Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-6 lg:gap-8">
-        {% if user.role == 'admin' or user.role == 'tester' %}
+        {% if user.role == 'admin' or user.role == 'batch' or user.role == 'tester' %}
         <a href="{% url 'barcode_module' %}" class="card group p-3 sm:p-6 lg:p-8 cursor-pointer">
             <div class="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center mb-2 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
                 <svg class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

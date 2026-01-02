@@ -85,13 +85,17 @@ def dashboard(request):
 @login_required
 @never_cache # Added never_cache decorator
 def barcode_module(request):
-    if request.user.role not in ['admin', 'tester']:
+    # Admin, Batch Generation, and Tester can access
+    if request.user.role not in ['admin', 'batch', 'tester']:
         return redirect('dashboard')
     return render(request, 'inventory/barcode_module.html')
 
 @login_required
-@never_cache 
+@never_cache
 def create_batch(request):
+    # Only Admin and Batch Generation can create batches
+    if request.user.role not in ['admin', 'batch']:
+        return redirect('dashboard')
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == 'POST':
@@ -123,6 +127,10 @@ def create_batch(request):
 @login_required
 @never_cache # Added never_cache decorator
 def batch_list(request):
+    # Admin, Batch Generation, and Tester can view batch list
+    if request.user.role not in ['admin', 'batch', 'tester']:
+        return redirect('dashboard')
+
     batches = Batch.objects.all()
 
     sku_code = request.GET.get('sku_code')
@@ -194,7 +202,8 @@ def barcode_list(request, batch_id):
 @login_required
 @never_cache # Added never_cache decorator
 def print_barcodes(request, batch_id, barcode_id=None):
-    if request.user.role not in ['admin', 'tester']:
+    # Admin, Batch Generation, and Tester can print barcodes
+    if request.user.role not in ['admin', 'batch', 'tester']:
         return redirect('dashboard')
     batch = get_object_or_404(Batch, id=batch_id)
     if barcode_id:
