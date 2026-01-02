@@ -154,6 +154,8 @@ venv.bak/
 # mkdocs documentation
 /site
 
+claude_code_zai_env.sh
+
 # mypy
 .mypy_cache/
 .dmypy.json

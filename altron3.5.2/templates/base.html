@@ -136,37 +136,171 @@
     </footer>
 
 {% if user.is_authenticated %}
+<!-- Session Timeout Warning Modal -->
+<div id="sessionWarningModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform transition-all">
+        <div class="text-center">
+            <!-- Warning Icon -->
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-orange-100 mb-4">
+                <svg class="h-8 w-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+
+            <!-- Warning Message -->
+            <h3 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Session Expiring Soon!</h3>
+            <p class="text-sm sm:text-base text-gray-600 mb-2">Your session will expire in:</p>
+            <p id="sessionCountdown" class="text-3xl sm:text-4xl font-extrabold text-orange-600 mb-4">2:00</p>
+            <p class="text-xs sm:text-sm text-gray-500 mb-6">You will be automatically logged out. Extend your session to continue working.</p>
+
+            <!-- Extend Session Button -->
+            <button onclick="extendSession()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-semibold inline-flex items-center justify-center space-x-2 text-sm sm:text-base">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                <span>Extend Session</span>
+            </button>
+
+            <!-- Logout Now Link -->
+            <button onclick="logoutNow()" class="mt-3 text-xs sm:text-sm text-gray-500 hover:text-gray-700 font-medium">
+                Logout Now
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-    let activityTimer;
-    const keepAliveInterval = 60000;
+    // Session Configuration
+    const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+    const WARNING_TIME = 13 * 60 * 1000;    // 13 minutes (show warning 2 min before expiry)
+    const CHECK_INTERVAL = 1000;            // Check every second
+
+    let sessionTimer;
+    let warningTimer;
+    let countdownInterval;
+    let timeRemaining = SESSION_TIMEOUT;
+    let isWarningShown = false;
+
     const keepAliveURL = "{% url 'session_keep_alive' %}";
 
-    function resetActivityTimer() {
-        clearTimeout(activityTimer);
-        activityTimer = setTimeout(() => {
-            fetch(keepAliveURL)
-                .then(response => {
-                    if (response.ok) {
-                        console.log('Session refreshed.');
-                    } else {
-                        console.error('Failed to refresh session.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error refreshing session:', error);
-                });
-        }, keepAliveInterval);
+    // Reset the session timer
+    function resetSessionTimer() {
+        // Don't reset if warning is already shown (user must take action)
+        if (isWarningShown) return;
+
+        timeRemaining = SESSION_TIMEOUT;
+        console.log('Session timer reset. Time remaining:', formatTime(timeRemaining));
     }
 
+    // Format milliseconds to MM:SS
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Show warning modal
+    function showWarningModal() {
+        isWarningShown = true;
+        const modal = document.getElementById('sessionWarningModal');
+        modal.classList.remove('hidden');
+
+        // Start countdown
+        const warningTimeLeft = SESSION_TIMEOUT - WARNING_TIME;
+        let countdown = warningTimeLeft;
+
+        updateCountdown(countdown);
+
+        countdownInterval = setInterval(() => {
+            countdown -= 1000;
+            updateCountdown(countdown);
+
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                logoutNow();
+            }
+        }, 1000);
+    }
+
+    // Update countdown display
+    function updateCountdown(ms) {
+        const countdownElement = document.getElementById('sessionCountdown');
+        if (countdownElement) {
+            countdownElement.textContent = formatTime(ms);
+        }
+    }
+
+    // Hide warning modal
+    function hideWarningModal() {
+        isWarningShown = false;
+        const modal = document.getElementById('sessionWarningModal');
+        modal.classList.add('hidden');
+
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+        }
+    }
+
+    // Extend session
+    function extendSession() {
+        fetch(keepAliveURL)
+            .then(response => {
+                if (response.ok) {
+                    console.log('Session extended.');
+                    hideWarningModal();
+                    resetSessionTimer();
+                } else {
+                    console.error('Failed to extend session.');
+                }
+            })
+            .catch(error => {
+                console.error('Error extending session:', error);
+            });
+    }
+
+    // Logout immediately
+    function logoutNow() {
+        window.location.href = "{% url 'logout' %}";
+    }
+
+    // Activity detected handler
     function activityDetected() {
-        resetActivityTimer();
+        resetSessionTimer();
     }
 
+    // Main session timer
+    function startSessionTimer() {
+        sessionTimer = setInterval(() => {
+            timeRemaining -= CHECK_INTERVAL;
+
+            // Show warning when time reaches WARNING_TIME
+            if (timeRemaining <= WARNING_TIME && !isWarningShown) {
+                showWarningModal();
+            }
+
+            // Auto logout when time expires
+            if (timeRemaining <= 0 && !isWarningShown) {
+                clearInterval(sessionTimer);
+                logoutNow();
+            }
+        }, CHECK_INTERVAL);
+    }
+
+    // Desktop events
     window.addEventListener('mousemove', activityDetected, { passive: true });
     window.addEventListener('keydown', activityDetected, { passive: true });
     window.addEventListener('scroll', activityDetected, { passive: true });
+    window.addEventListener('click', activityDetected, { passive: true });
 
-    resetActivityTimer();
+    // Touch/Mobile events
+    window.addEventListener('touchstart', activityDetected, { passive: true });
+    window.addEventListener('touchmove', activityDetected, { passive: true });
+    window.addEventListener('touchend', activityDetected, { passive: true });
+
+    // Start the session timer
+    startSessionTimer();
+    console.log('Session timeout initialized: 15 minutes (warning at 13 minutes)');
 </script>
 {% endif %}
 
