@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, SKU, Batch, Barcode, TestQuestion, Test, TestAnswer, TestTemplate, TechnicalOutputChoice, BatchSpecTemplate, ServiceCase # Import ALL Models
+from django.utils.html import format_html
+from .models import CustomUser, SKU, Batch, Barcode, TestQuestion, Test, TestAnswer, TestTemplate, TechnicalOutputChoice, BatchSpecTemplate, ServiceCase, Technician, SystemLog # Import ALL Models
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -74,19 +75,29 @@ class TechnicalOutputChoiceAdmin(admin.ModelAdmin):
     search_fields = ('value',)
 
 
+# 💡 Technician Admin
+@admin.register(Technician)
+class TechnicianAdmin(admin.ModelAdmin):
+    list_display = ['name', 'employee_id', 'is_active', 'contact_number', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'employee_id']
+    list_editable = ['is_active']
+    ordering = ['name']
+
+
 # 💡 Service Case Admin
 @admin.register(ServiceCase)
 class ServiceCaseAdmin(admin.ModelAdmin):
-    list_display = ['case_id', 'barcode', 'status', 'service_date', 'technician_name', 'created_at']
-    list_filter = ['status', 'service_date', 'created_at']
-    search_fields = ['case_id', 'barcode__sequence_number', 'technician_name', 'issue_description']
+    list_display = ['case_id', 'barcode', 'status', 'service_date', 'technician', 'created_at']
+    list_filter = ['status', 'service_date', 'technician', 'created_at']
+    search_fields = ['case_id', 'barcode__sequence_number', 'technician__name', 'issue_description']
     readonly_fields = ['case_id', 'created_at', 'updated_at']
     date_hierarchy = 'service_date'
     ordering = ['-created_at']
 
     fieldsets = (
         ('Service Identification', {
-            'fields': ('case_id', 'test', 'barcode', 'service_date', 'technician_name')
+            'fields': ('case_id', 'test', 'barcode', 'service_date', 'technician')
         }),
         ('Issue & Actions', {
             'fields': ('status', 'issue_description', 'actions_taken', 'remarks')
@@ -99,3 +110,88 @@ class ServiceCaseAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+# 💡 System Log Admin
+@admin.register(SystemLog)
+class SystemLogAdmin(admin.ModelAdmin):
+    list_display = ['timestamp', 'event_type_badge', 'level_badge', 'title', 'user', 'barcode_link', 'test_link', 'service_case_link']
+    list_filter = ['event_type', 'level', 'timestamp', 'user']
+    search_fields = ['title', 'description', 'barcode__sequence_number', 'test__barcode__sequence_number', 'service_case__case_id', 'user__username']
+    readonly_fields = ['timestamp', 'event_type', 'level', 'title', 'description', 'details', 'user', 'barcode', 'test', 'service_case', 'batch', 'ip_address', 'user_agent']
+    date_hierarchy = 'timestamp'
+    ordering = ['-timestamp']
+
+    fieldsets = (
+        ('Event Information', {
+            'fields': ('timestamp', 'event_type', 'level', 'title', 'description')
+        }),
+        ('Related Objects', {
+            'fields': ('user', 'barcode', 'test', 'service_case', 'batch')
+        }),
+        ('Technical Details', {
+            'fields': ('details', 'ip_address', 'user_agent'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Logs should only be created programmatically
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Logs should be read-only
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers can delete logs
+        return request.user.is_superuser
+
+    def event_type_badge(self, obj):
+        colors = {
+            'test_failed': 'red',
+            'test_passed': 'green',
+            'service_created': 'blue',
+            'service_updated': 'yellow',
+            'service_completed': 'green',
+            'batch_created': 'purple',
+            'user_login': 'gray',
+            'user_logout': 'gray',
+            'system_error': 'red',
+            'validation_error': 'orange',
+            'performance_issue': 'orange',
+            'other': 'gray',
+        }
+        color = colors.get(obj.event_type, 'gray')
+        return format_html('<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 11px;">{}</span>', color, obj.get_event_type_display())
+    event_type_badge.short_description = 'Event Type'
+
+    def level_badge(self, obj):
+        colors = {
+            'info': 'blue',
+            'warning': 'orange',
+            'error': 'red',
+            'critical': 'darkred',
+        }
+        color = colors.get(obj.level, 'gray')
+        return format_html('<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 11px;">{}</span>', color, obj.get_level_display().upper())
+    level_badge.short_description = 'Level'
+
+    def barcode_link(self, obj):
+        if obj.barcode:
+            return format_html('<a href="/admin/inventory/barcode/{}/change/" target="_blank">{}</a>', obj.barcode.pk, obj.barcode.sequence_number)
+        return '-'
+    barcode_link.short_description = 'Barcode'
+
+    def test_link(self, obj):
+        if obj.test:
+            return format_html('<a href="/admin/inventory/test/{}/change/" target="_blank">Test #{}</a>', obj.test.pk, obj.test.pk)
+        return '-'
+    test_link.short_description = 'Test'
+
+    def service_case_link(self, obj):
+        if obj.service_case:
+            return format_html('<a href="/admin/inventory/servicecase/{}/change/" target="_blank">{}</a>', obj.service_case.pk, obj.service_case.case_id)
+        return '-'
+    service_case_link.short_description = 'Service Case'
+

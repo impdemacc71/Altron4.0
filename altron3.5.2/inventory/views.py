@@ -8,7 +8,7 @@ from django.db.models import Count, Q
 from django.conf import settings # Import settings for MEDIA_URL
 from django.views.decorators.cache import never_cache # Import never_cache decorator
 from .forms import  BatchCreateForm, TestForm, TestOverallStatusForm, ServiceCaseForm
-from .models import Batch, Barcode, SKU, Test, TestQuestion, TestAnswer, CustomUser, TestTemplate, ServiceCase
+from .models import Batch, Barcode, SKU, Test, TestQuestion, TestAnswer, CustomUser, TestTemplate, ServiceCase, Technician, SystemLog
 import logging
 from django.core.paginator import Paginator
 from django.template.loader import get_template
@@ -68,17 +68,21 @@ def user_logout(request):
 @login_required
 @never_cache # Added never_cache decorator
 def dashboard(request):
-    # Calculate test statistics
-    total_tests = Test.objects.count()
-    passed_tests = Test.objects.filter(overall_status='passed').count()
-    failed_tests = Test.objects.filter(overall_status='failed').count()
-    pending_tests = Test.objects.filter(overall_status='pending').count()
+    # Calculate test statistics in a SINGLE query (performance fix)
+    from django.db.models import Count, Q
+
+    counts = Test.objects.aggregate(
+        total_tests=Count('id'),
+        passed_tests=Count('id', filter=Q(overall_status='passed')),
+        failed_tests=Count('id', filter=Q(overall_status='failed')),
+        pending_tests=Count('id', filter=Q(overall_status='pending'))
+    )
 
     context = {
-        'total_tests': total_tests,
-        'passed_tests': passed_tests,
-        'failed_tests': failed_tests,
-        'pending_tests': pending_tests,
+        'total_tests': counts['total_tests'] or 0,
+        'passed_tests': counts['passed_tests'] or 0,
+        'failed_tests': counts['failed_tests'] or 0,
+        'pending_tests': counts['pending_tests'] or 0,
     }
     return render(request, 'inventory/dashboard.html', context)
 
@@ -103,11 +107,29 @@ def create_batch(request):
 
         if form.is_valid():
             if is_ajax:
-                # AJAX successful validation—this branch is usually just hit for form rendering, 
+                # AJAX successful validation—this branch is usually just hit for form rendering,
                 # but we'll include it for completeness if the view must return HTML.
                 pass # Proceed to save and redirect below
             else:
-                form.save()
+                batch = form.save()
+
+                # Log batch creation
+                SystemLog.log_event(
+                    event_type='batch_created',
+                    title=f'Batch {batch.prefix} Created',
+                    description=f'Batch created with {batch.quantity} barcodes for SKU {batch.sku.code}',
+                    level='info',
+                    user=request.user,
+                    batch=batch,
+                    request=request,
+                    details={
+                        'sku_code': batch.sku.code,
+                        'quantity': batch.quantity,
+                        'batch_date': str(batch.batch_date),
+                        'spec_template': batch.spec_template.name if batch.spec_template else None,
+                    }
+                )
+
                 return redirect('batch_list')
         
         # If form is invalid or we are handling an AJAX update request:
@@ -131,7 +153,8 @@ def batch_list(request):
     if request.user.role not in ['admin', 'batch', 'tester']:
         return redirect('dashboard')
 
-    batches = Batch.objects.all()
+    # Performance fix: Add select_related to prevent N+1 queries
+    batches = Batch.objects.select_related('sku', 'spec_template')
 
     sku_code = request.GET.get('sku_code')
     from_date = request.GET.get('from_date')
@@ -287,6 +310,41 @@ def new_test(request):
                         technical_output=technical_output,
                         remarks=remarks
                     )
+
+                # Log test creation
+                if test.overall_status == 'failed':
+                    SystemLog.log_event(
+                        event_type='test_failed',
+                        title=f'Test Failed for {barcode_instance.sequence_number}',
+                        description=f'Test failed for barcode {barcode_instance.sequence_number} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                        level='warning',
+                        user=request.user,
+                        barcode=barcode_instance,
+                        test=test,
+                        request=request,
+                        details={
+                            'sku_code': sku_instance.code,
+                            'batch_prefix': batch_instance.prefix,
+                            'template': template_instance.name if template_instance else None,
+                        }
+                    )
+                elif test.overall_status == 'passed':
+                    SystemLog.log_event(
+                        event_type='test_passed',
+                        title=f'Test Passed for {barcode_instance.sequence_number}',
+                        description=f'Test passed for barcode {barcode_instance.sequence_number} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                        level='info',
+                        user=request.user,
+                        barcode=barcode_instance,
+                        test=test,
+                        request=request,
+                        details={
+                            'sku_code': sku_instance.code,
+                            'batch_prefix': batch_instance.prefix,
+                            'template': template_instance.name if template_instance else None,
+                        }
+                    )
+
                 return redirect('test_detail', test_id=test.id)
         else:
             logger.error("Form validation failed: %s", form.errors)
@@ -310,7 +368,8 @@ def test_results(request):
     barcode = request.GET.get('barcode')
     template_used = request.GET.get('template_used')
 
-    tests = Test.objects.all()
+    # Performance fix: Add select_related to prevent N+1 queries
+    tests = Test.objects.select_related('sku', 'batch', 'barcode', 'template_used', 'user')
 
     if from_date:
         tests = tests.filter(test_date__gte=from_date)
@@ -338,7 +397,7 @@ def test_results(request):
         'tests': tests,
         'counts': counts,
         'skus': SKU.objects.all(),
-        'batches': Batch.objects.all(),
+        'batches': Batch.objects.select_related('sku'),  # Performance fix
         'templates': TestTemplate.objects.all(),
         'from_date': from_date,
         'to_date': to_date,
@@ -549,7 +608,7 @@ def create_service_case(request, barcode_id=None, test_id=None):
             test=test,
             barcode=barcode,
             service_date=request.POST.get('service_date'),
-            technician_name=request.POST.get('technician_name'),
+            technician_id=request.POST.get('technician'),
             issue_description=request.POST.get('issue_description'),
             actions_taken=request.POST.get('actions_taken'),
             remarks=request.POST.get('remarks', ''),
@@ -562,11 +621,31 @@ def create_service_case(request, barcode_id=None, test_id=None):
             service_case.attachments = request.FILES.get('attachment')
 
         service_case.save()
+
+        # Log service case creation
+        SystemLog.log_event(
+            event_type='service_created',
+            title=f'Service Case {service_case.case_id} Created',
+            description=f'Service case created for barcode {barcode.sequence_number if barcode else "N/A"}',
+            level='info',
+            user=request.user,
+            barcode=barcode,
+            test=test,
+            service_case=service_case,
+            request=request,
+            details={
+                'status': service_case.status,
+                'service_date': str(service_case.service_date),
+                'issue_description': service_case.issue_description[:100],  # First 100 chars
+            }
+        )
+
         return redirect('service_detail', case_id=service_case.case_id)
 
     context = {
         'barcode': barcode,
         'test': test,
+        'technicians': Technician.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'inventory/create_service_case.html', context)
 
@@ -659,7 +738,7 @@ def service_list(request):
         if case_id:
             service_cases = service_cases.filter(case_id__icontains=case_id)
         if technician:
-            service_cases = service_cases.filter(technician_name__icontains=technician)
+            service_cases = service_cases.filter(technician__name__icontains=technician)
         if status:
             service_cases = service_cases.filter(status=status)
         if from_date:
@@ -723,7 +802,7 @@ def print_service_report(request):
         if case_id:
             service_cases = service_cases.filter(case_id__icontains=case_id)
         if technician:
-            service_cases = service_cases.filter(technician_name__icontains=technician)
+            service_cases = service_cases.filter(technician__name__icontains=technician)
         if status:
             service_cases = service_cases.filter(status=status)
         if from_date:
@@ -831,6 +910,7 @@ def service_detail(request, case_id):
         'related_cases': related_cases,
         'can_edit': can_edit,
         'form': form,
+        'technicians': Technician.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'inventory/service_detail.html', context)
 

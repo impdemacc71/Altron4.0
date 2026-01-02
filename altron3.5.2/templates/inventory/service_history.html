@@ -116,7 +116,7 @@
                         </div>
                         <div>
                             <p class="text-[9px] sm:text-[10px] text-gray-500">Technician</p>
-                            <p class="text-xs sm:text-sm font-semibold text-gray-900">{{ case.technician_name }}</p>
+                            <p class="text-xs sm:text-sm font-semibold text-gray-900">{{ case.technician.name|default:"N/A" }}</p>
                         </div>
                     </div>
 

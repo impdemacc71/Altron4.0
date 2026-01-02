@@ -3,7 +3,7 @@ from django import forms
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
-from .models import CustomUser, SKU, Batch, Barcode, Test, TestQuestion, TestAnswer, TestTemplate, TechnicalOutputChoice, BatchSpecTemplate 
+from .models import CustomUser, SKU, Batch, Barcode, Test, TestQuestion, TestAnswer, TestTemplate, TechnicalOutputChoice, BatchSpecTemplate, Technician 
 
 # Define all possible spec field mappings (Internal Name: Human Readable Label)
 SPEC_FIELD_MAP = {
@@ -247,13 +247,18 @@ class TestOverallStatusForm(forms.ModelForm):
 
 # Form for editing service cases
 class ServiceCaseForm(forms.ModelForm):
+    technician = forms.ModelChoiceField(
+        queryset=Technician.objects.filter(is_active=True),
+        empty_label="--- Select Technician ---",
+        widget=forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'})
+    )
+
     class Meta:
         from .models import ServiceCase
         model = ServiceCase
-        fields = ['service_date', 'technician_name', 'status', 'issue_description', 'actions_taken', 'remarks', 'attachments']
+        fields = ['service_date', 'technician', 'status', 'issue_description', 'actions_taken', 'remarks', 'attachments']
         widgets = {
             'service_date': forms.DateInput(attrs={'type': 'date', 'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),
-            'technician_name': forms.TextInput(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white', 'placeholder': 'Enter technician name'}),
             'status': forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),
             'issue_description': forms.Textarea(attrs={'rows': 4, 'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white resize-none', 'placeholder': 'Describe the issue...'}),
             'actions_taken': forms.Textarea(attrs={'rows': 4, 'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white resize-none', 'placeholder': 'Describe actions taken...'}),

@@ -136,6 +136,13 @@ class Barcode(models.Model):
     sequence_number = models.CharField(max_length=30, unique=True)
     #barcode_image = models.ImageField(upload_to='barcodes/', blank=True, null=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['sequence_number']),
+            models.Index(fields=['batch']),
+            models.Index(fields=['sku']),
+        ]
+
     def __str__(self):
         return self.sequence_number
 
@@ -174,6 +181,15 @@ class Test(models.Model):
     test_date = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['barcode']),
+            models.Index(fields=['overall_status']),
+            models.Index(fields=['test_date']),
+            models.Index(fields=['sku', 'batch']),
+            models.Index(fields=['-test_date']),  # For ordering
+        ]
+
     def __str__(self):
         return f"Test {self.id} - {self.barcode.sequence_number} ({self.overall_status})"
 
@@ -186,7 +202,7 @@ class TestAnswer(models.Model):
 
     def __str__(self):
         return f"{self.test} - {self.question} ({'Passed' if self.is_passed else 'Failed'})"
-    
+
 class TechnicalOutputChoice(models.Model):
     value = models.CharField(max_length=50, unique=True, help_text="e.g., 200W, 1700W, 300A")
     is_active = models.BooleanField(default=True)
@@ -197,6 +213,23 @@ class TechnicalOutputChoice(models.Model):
 
     def __str__(self):
         return self.value
+
+
+class Technician(models.Model):
+    """Master model for service technicians"""
+    name = models.CharField(max_length=100, unique=True, help_text="Full name of the technician")
+    employee_id = models.CharField(max_length=50, blank=True, null=True, help_text="Employee ID (optional)")
+    is_active = models.BooleanField(default=True, help_text="Whether this technician is active")
+    contact_number = models.CharField(max_length=20, blank=True, null=True, help_text="Contact number (optional)")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Technician"
+        verbose_name_plural = "Technicians"
+
+    def __str__(self):
+        return self.name
 
 
 class ServiceCase(models.Model):
@@ -218,7 +251,7 @@ class ServiceCase(models.Model):
 
     # Service details
     service_date = models.DateField(help_text="Date when service was performed")
-    technician_name = models.CharField(max_length=100, help_text="Name of the service technician")
+    technician = models.ForeignKey(Technician, on_delete=models.PROTECT, null=True, blank=True, help_text="Service technician assigned to this case")
 
     # Issue and action tracking
     issue_description = models.TextField(help_text="Description of the issue reported")
@@ -242,6 +275,14 @@ class ServiceCase(models.Model):
     class Meta:
         ordering = ['-created_at']
         verbose_name = "Service Case"
+        indexes = [
+            models.Index(fields=['case_id']),
+            models.Index(fields=['barcode']),
+            models.Index(fields=['status']),
+            models.Index(fields=['service_date']),
+            models.Index(fields=['technician']),
+            models.Index(fields=['-created_at']),  # Already ordering by this
+        ]
         verbose_name_plural = "Service Cases"
 
     def __str__(self):
@@ -257,3 +298,114 @@ class ServiceCase(models.Model):
             year_count = ServiceCase.objects.filter(case_id__startswith=f'SVC-{current_year}-').count()
             self.case_id = f'SVC-{current_year}-{year_count + 1:04d}'
         super().save(*args, **kwargs)
+
+
+class SystemLog(models.Model):
+    """System event logging for issue analysis and tracking"""
+    LOG_LEVEL_CHOICES = [
+        ('info', 'Info'),
+        ('warning', 'Warning'),
+        ('error', 'Error'),
+        ('critical', 'Critical'),
+    ]
+
+    EVENT_TYPE_CHOICES = [
+        ('test_failed', 'Test Failed'),
+        ('test_passed', 'Test Passed'),
+        ('service_created', 'Service Case Created'),
+        ('service_updated', 'Service Case Updated'),
+        ('service_completed', 'Service Case Completed'),
+        ('batch_created', 'Batch Created'),
+        ('user_login', 'User Login'),
+        ('user_logout', 'User Logout'),
+        ('system_error', 'System Error'),
+        ('validation_error', 'Validation Error'),
+        ('performance_issue', 'Performance Issue'),
+        ('other', 'Other'),
+    ]
+
+    # Event details
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES, db_index=True, help_text="Type of event")
+    level = models.CharField(max_length=20, choices=LOG_LEVEL_CHOICES, default='info', db_index=True, help_text="Log level")
+
+    # Related objects (optional)
+    barcode = models.ForeignKey(Barcode, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs', help_text="Related barcode if applicable")
+    test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs', help_text="Related test if applicable")
+    service_case = models.ForeignKey(ServiceCase, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs', help_text="Related service case if applicable")
+    batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs', help_text="Related batch if applicable")
+
+    # User who triggered the event
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs', help_text="User who triggered the event")
+
+    # Event information
+    title = models.CharField(max_length=255, db_index=True, help_text="Brief title of the event")
+    description = models.TextField(blank=True, help_text="Detailed description of the event")
+
+    # Technical details (JSON for flexibility)
+    details = models.JSONField(blank=True, null=True, help_text="Additional technical details as JSON")
+
+    # Metadata
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When the event occurred")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of the user")
+    user_agent = models.TextField(blank=True, help_text="Browser/user agent information")
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "System Log"
+        verbose_name_plural = "System Logs"
+        indexes = [
+            models.Index(fields=['event_type', 'level']),
+            models.Index(fields=['-timestamp']),
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['barcode', '-timestamp']),
+            models.Index(fields=['test', '-timestamp']),
+            models.Index(fields=['service_case', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return f"[{self.level.upper()}] {self.event_type} - {self.title}"
+
+    @classmethod
+    def log_event(cls, event_type, title, description="", level='info', user=None, barcode=None, test=None, service_case=None, batch=None, details=None, request=None):
+        """
+        Utility method to create log entries
+
+        Usage:
+            SystemLog.log_event(
+                event_type='test_failed',
+                title='Test failed for barcode ABC123',
+                description='Multiple test questions failed',
+                level='warning',
+                user=request.user,
+                test=test_obj,
+                request=request
+            )
+        """
+        log_entry = cls(
+            event_type=event_type,
+            title=title,
+            description=description,
+            level=level,
+            user=user,
+            barcode=barcode,
+            test=test,
+            service_case=service_case,
+            batch=batch,
+            details=details or {},
+        )
+
+        # Capture request metadata if available
+        if request:
+            # Get IP address from request
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                log_entry.ip_address = x_forwarded_for.split(',')[0]
+            else:
+                log_entry.ip_address = request.META.get('REMOTE_ADDR')
+
+            # Get user agent
+            log_entry.user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]  # Limit to 500 chars
+
+        log_entry.save()
+        return log_entry
+
