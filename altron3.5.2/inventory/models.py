@@ -85,7 +85,10 @@ class Batch(models.Model):
 
     # Dynamic Template Link
     spec_template = models.ForeignKey(BatchSpecTemplate, on_delete=models.SET_NULL, null=True, blank=True)
-    
+
+    # Drive attachment link
+    attachment = models.URLField(max_length=500, blank=True, null=True, help_text="Google Drive link for batch attachments")
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -251,7 +254,7 @@ class ServiceCase(models.Model):
 
     # Service details
     service_date = models.DateField(help_text="Date when service was performed")
-    technician = models.ForeignKey(Technician, on_delete=models.PROTECT, null=True, blank=True, help_text="Service technician assigned to this case")
+    technician = models.CharField(max_length=150, help_text="Username of the service technician assigned to this case")
 
     # Issue and action tracking
     issue_description = models.TextField(help_text="Description of the issue reported")

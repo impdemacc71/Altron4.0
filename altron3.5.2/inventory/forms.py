@@ -45,11 +45,12 @@ class BatchCreateForm(forms.ModelForm):
         model = Batch
         # These are the CORE fields always needed for batch/barcode creation.
         # Note: Prefix is defined above, not here.
-        fields = ['sku', 'batch_date', 'quantity', 'spec_template']
+        fields = ['sku', 'batch_date', 'quantity', 'spec_template', 'attachment']
         widgets = {
             'sku': forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),
             'batch_date': forms.DateInput(attrs={'type': 'date', 'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),
             'quantity': forms.NumberInput(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),
+            'attachment': forms.URLInput(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white', 'placeholder': 'https://drive.google.com/...'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -247,16 +248,10 @@ class TestOverallStatusForm(forms.ModelForm):
 
 # Form for editing service cases
 class ServiceCaseForm(forms.ModelForm):
-    technician = forms.ModelChoiceField(
-        queryset=Technician.objects.filter(is_active=True),
-        empty_label="--- Select Technician ---",
-        widget=forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'})
-    )
-
     class Meta:
         from .models import ServiceCase
         model = ServiceCase
-        fields = ['service_date', 'technician', 'status', 'issue_description', 'actions_taken', 'remarks', 'attachments']
+        fields = ['service_date', 'status', 'issue_description', 'actions_taken', 'remarks', 'attachments']
         widgets = {
             'service_date': forms.DateInput(attrs={'type': 'date', 'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),
             'status': forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'}),

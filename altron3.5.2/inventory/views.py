@@ -608,7 +608,7 @@ def create_service_case(request, barcode_id=None, test_id=None):
             test=test,
             barcode=barcode,
             service_date=request.POST.get('service_date'),
-            technician_id=request.POST.get('technician'),
+            technician=request.user.username,
             issue_description=request.POST.get('issue_description'),
             actions_taken=request.POST.get('actions_taken'),
             remarks=request.POST.get('remarks', ''),
