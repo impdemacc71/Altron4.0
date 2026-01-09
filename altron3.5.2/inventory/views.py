@@ -894,6 +894,8 @@ def service_detail(request, case_id):
         form = ServiceCaseForm(request.POST, request.FILES, instance=service_case)
         if form.is_valid():
             updated_case = form.save(commit=False)
+            # Automatically set technician to logged-in user
+            updated_case.technician = request.user.username
             updated_case.save()
             messages.success(request, f'Service case {service_case.case_id} updated successfully!')
             return redirect('service_detail', case_id=service_case.case_id)
@@ -910,7 +912,6 @@ def service_detail(request, case_id):
         'related_cases': related_cases,
         'can_edit': can_edit,
         'form': form,
-        'technicians': Technician.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'inventory/service_detail.html', context)
 

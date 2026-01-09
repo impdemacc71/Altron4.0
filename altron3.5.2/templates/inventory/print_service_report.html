@@ -200,7 +200,7 @@
                     <td>{{ case.case_id }}</td>
                     <td>{{ case.barcode.sequence_number|default:"N/A" }}</td>
                     <td>{{ case.service_date|date:"Y-m-d" }}</td>
-                    <td>{{ case.technician.name|default:"N/A" }}</td>
+                    <td>{{ case.technician|default:"N/A" }}</td>
                     <td>
                         <span class="status-badge status-{{ case.status }}">
                             {{ case.get_status_display }}

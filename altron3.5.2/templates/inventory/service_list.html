@@ -263,7 +263,7 @@
                                     <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.service_date|date:"Y-m-d" }}</div>
                                 </td>
                                 <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden lg:table-cell">
-                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.technician.name|default:"N/A" }}</div>
+                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.technician|default:"N/A" }}</div>
                                 </td>
                                 <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
                                     <span class="inline-flex items-center px-2 sm:px-2.5 py-1 rounded-full text-[9px] sm:text-xs font-semibold
