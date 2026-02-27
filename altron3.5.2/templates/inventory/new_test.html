@@ -40,7 +40,27 @@
             {% endif %}
 
             <!-- Selection Fields -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="relative">
+                <!-- Auto-save Indicator -->
+                <div id="auto-save-indicator" class="absolute -top-3 right-0 z-10 hidden">
+                    <div class="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-lg border border-gray-200">
+                        <svg class="animate-spin h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Saving...</span>
+                    </div>
+                </div>
+                <div id="save-success-indicator" class="absolute -top-3 right-0 z-10 hidden">
+                    <div class="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-lg border border-green-200">
+                        <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-green-700">Saved</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="space-y-2">
                     <label for="id_sku" class="flex items-center text-sm font-semibold text-gray-700">
                         <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,6 +125,7 @@
                         <p class="text-sm text-red-600">{{ form.overall_status.errors.as_text }}</p>
                     {% endif %}
                 </div>
+                </div>
             </div>
 
             <!-- Test Questions Section -->
@@ -120,20 +141,20 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gradient-to-r from-purple-50 to-indigo-50">
                             <tr>
-                                <th class="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider">Question</th>
-                                <th class="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider w-32">Status</th>
-                                <th class="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider w-40">Technical Output</th>
-                                <th class="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider w-1/4">Remarks</th>
+                                <th class="px-4 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider">Question</th>
+                                <th class="px-4 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider min-w-[120px]">Status</th>
+                                <th class="px-4 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider min-w-[140px]">Technical Output</th>
+                                <th class="px-4 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider">Remarks</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for field in form %}
                                 {% if field.name|slice:"0:9" == "question_" and field.name|slice:"-7:" == "_status" %}
-                                <tr class="hover:bg-purple-50 transition-colors duration-150">
-                                    <td class="px-6 py-4 text-sm text-gray-900 font-medium">{{ field.label }}</td>
+                                <tr class="hover:bg-purple-50 transition-colors duration-150" data-question-row>
+                                    <td class="px-4 py-4 text-sm text-gray-900 font-medium">{{ field.label }}</td>
 
-                                    <td class="px-6 py-4">
-                                        <div class="rounded-lg border-2 border-gray-200 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
+                                    <td class="px-4 py-4">
+                                        <div class="rounded-lg border-2 border-gray-200 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100 transition-all status-select-wrapper">
                                             {{ field }}
                                         </div>
                                         {% if field.errors %}
@@ -141,7 +162,7 @@
                                         {% endif %}
                                     </td>
 
-                                    <td class="px-6 py-4">
+                                    <td class="px-4 py-4">
                                         {% with output_name=field.name|slice:"0:-7"|add:"_output" %}
                                             <div class="rounded-lg border-2 border-gray-200 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
                                                 {{ form|get_field:output_name }}
@@ -152,7 +173,7 @@
                                         {% endwith %}
                                     </td>
 
-                                    <td class="px-6 py-4">
+                                    <td class="px-4 py-4">
                                         {% with remarks_name=field.name|slice:"0:-7"|add:"_remarks" %}
                                             <div class="rounded-lg border-2 border-gray-200 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
                                                 {{ form|get_field:remarks_name }}
@@ -192,6 +213,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let tomSelectInstance = null;
     let eventListeners = new Map();
+    let autoSaveTimeout = null;
+    let currentTestId = null;
 
     function initializeTomSelect(elementId, placeholderText) {
         const element = getElement(elementId);
@@ -213,6 +236,111 @@ document.addEventListener('DOMContentLoaded', function() {
             return instance;
         }
         return null;
+    }
+
+    // Update status dropdown colors based on selection
+    function updateStatusColor(selectElement) {
+        if (!selectElement) return;
+
+        // Remove existing color classes from select element
+        selectElement.classList.remove('bg-green-100', 'bg-red-100', 'border-green-500', 'border-red-500', 'text-green-800', 'text-red-800');
+
+        const value = selectElement.value;
+        if (value === 'pass') {
+            selectElement.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+        } else if (value === 'fail') {
+            selectElement.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+        }
+    }
+
+    // Apply initial colors to all status dropdowns
+    function applyStatusColors() {
+        document.querySelectorAll('select[name$="_status"]').forEach(select => {
+            updateStatusColor(select);
+            // Add change listener for color updates
+            select.addEventListener('change', function() {
+                updateStatusColor(this);
+                // Trigger auto-save when status changes
+                triggerAutoSave();
+            });
+        });
+    }
+
+    // Auto-save with debouncing
+    function triggerAutoSave() {
+        // Clear existing timeout
+        if (autoSaveTimeout) {
+            clearTimeout(autoSaveTimeout);
+        }
+
+        // Check if we have the required fields for auto-save
+        const sku = getElement('id_sku')?.value;
+        const batch = getElement('id_batch')?.value;
+        const template = getElement('id_template')?.value;
+
+        if (!sku || !batch || !template) {
+            return; // Don't auto-save if required fields are missing
+        }
+
+        // Show saving indicator
+        const savingIndicator = getElement('auto-save-indicator');
+        const successIndicator = getElement('save-success-indicator');
+
+        // Set timeout for auto-save (2 seconds after last change)
+        autoSaveTimeout = setTimeout(() => {
+            if (savingIndicator) savingIndicator.classList.remove('hidden');
+            if (successIndicator) successIndicator.classList.add('hidden');
+
+            const formData = new FormData(testForm);
+            formData.append('test_id', currentTestId || '');
+
+            fetch('{% url "auto_save_test" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    currentTestId = data.test_id;
+                    // Hide saving indicator and show success
+                    if (savingIndicator) savingIndicator.classList.add('hidden');
+                    if (successIndicator) {
+                        successIndicator.classList.remove('hidden');
+                        // Hide success indicator after 2 seconds
+                        setTimeout(() => {
+                            successIndicator.classList.add('hidden');
+                        }, 2000);
+                    }
+                    console.log('Auto-saved:', data.message);
+                } else {
+                    console.error('Auto-save error:', data.message);
+                    if (savingIndicator) savingIndicator.classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Auto-save failed:', error);
+                if (savingIndicator) savingIndicator.classList.add('hidden');
+            });
+        }, 2000); // 2 second debounce
+    }
+
+    // Attach auto-save listeners to all question fields
+    function attachAutoSaveListeners() {
+        // Listen for changes on all question-related fields
+        testForm.querySelectorAll('select[name^="question_"], textarea[name^="question_"]').forEach(field => {
+            // Remove existing listener if any (to avoid duplicates)
+            field.removeEventListener('change', triggerAutoSave);
+            field.removeEventListener('input', triggerAutoSave);
+
+            // Add new listeners
+            field.addEventListener('change', triggerAutoSave);
+            if (field.tagName === 'TEXTAREA') {
+                field.addEventListener('input', triggerAutoSave);
+            }
+        });
     }
 
     function reattachListeners() {
@@ -306,6 +434,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Re-attach event listeners to the new elements
                 reattachListeners();
 
+                // Apply status colors and auto-save listeners to new elements
+                applyStatusColors();
+                attachAutoSaveListeners();
+
             } else {
                 console.error('New form not found in response');
             }
@@ -317,6 +449,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial setup on page load
     initializeTomSelect('id_barcode', 'Select a Barcode...');
     reattachListeners();
+    applyStatusColors();
+    attachAutoSaveListeners();
 });
 </script>
 {% endblock %}

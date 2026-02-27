@@ -141,7 +141,7 @@ class TestForm(forms.Form):
         widget=forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'})
     )
     overall_status = forms.ChoiceField(
-        choices=[('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed')],
+        choices=[('draft', 'Draft'), ('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed')],
         widget=forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'})
     )
 

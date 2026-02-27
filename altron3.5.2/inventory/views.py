@@ -356,11 +356,107 @@ def new_test(request):
     return render(request, 'inventory/new_test.html', {'form': form})
 
 @login_required
+def auto_save_test(request):
+    """Auto-save test data as draft"""
+    if request.user.role not in ['admin', 'tester']:
+        return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+    try:
+        # Get or create test ID from session
+        test_id = request.POST.get('test_id')
+        sku_id = request.POST.get('sku')
+        batch_id = request.POST.get('batch')
+        barcode_id = request.POST.get('barcode')
+        template_id = request.POST.get('template')
+        overall_status = request.POST.get('overall_status', 'draft')
+
+        if not all([sku_id, batch_id, template_id]):
+            return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
+
+        # Get instances
+        sku_instance = SKU.objects.get(id=sku_id)
+        batch_instance = Batch.objects.get(id=batch_id)
+        template_instance = TestTemplate.objects.get(id=template_id)
+        barcode_instance = Barcode.objects.filter(id=barcode_id).first()
+
+        # Get or create test
+        if test_id:
+            test = Test.objects.get(id=test_id, user=request.user)
+            # Update basic fields
+            test.sku = sku_instance
+            test.batch = batch_instance
+            test.template_used = template_instance
+            if barcode_instance:
+                test.barcode = barcode_instance
+            test.overall_status = overall_status
+            test.save()
+
+            # Delete existing answers for this test (we'll recreate them)
+            TestAnswer.objects.filter(test=test).delete()
+        else:
+            # Create new test as draft
+            test = Test.objects.create(
+                sku=sku_instance,
+                batch=batch_instance,
+                barcode=barcode_instance,
+                user=request.user,
+                template_used=template_instance,
+                overall_status='draft'
+            )
+
+        # Save question answers
+        questions = TestQuestion.objects.filter(template=template_instance)
+        answers_count = 0
+
+        for question in questions:
+            status_field_name = f'question_{question.id}_status'
+            output_field_name = f'question_{question.id}_output'
+            remarks_field_name = f'question_{question.id}_remarks'
+
+            status = request.POST.get(status_field_name)
+
+            # Only save if status is provided
+            if status:
+                is_passed = (status == 'pass')
+                technical_output = request.POST.get(output_field_name, '')
+                remarks = request.POST.get(remarks_field_name, '')
+
+                TestAnswer.objects.create(
+                    test=test,
+                    question=question,
+                    is_passed=is_passed,
+                    technical_output=technical_output,
+                    remarks=remarks
+                )
+                answers_count += 1
+
+        return JsonResponse({
+            'status': 'success',
+            'test_id': test.id,
+            'message': f'Saved {answers_count} answers'
+        })
+
+    except SKU.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Invalid SKU'}, status=400)
+    except Batch.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Invalid Batch'}, status=400)
+    except TestTemplate.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Invalid Template'}, status=400)
+    except Test.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Test not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Auto-save error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
 @never_cache # Added never_cache decorator
 def test_results(request):
     if request.user.role not in ['admin', 'tester']:
         return redirect('dashboard')
-    
+
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
     sku = request.GET.get('sku')
@@ -369,7 +465,8 @@ def test_results(request):
     template_used = request.GET.get('template_used')
 
     # Performance fix: Add select_related to prevent N+1 queries
-    tests = Test.objects.select_related('sku', 'batch', 'barcode', 'template_used', 'user')
+    # Exclude draft tests from results
+    tests = Test.objects.select_related('sku', 'batch', 'barcode', 'template_used', 'user').exclude(overall_status='draft')
 
     if from_date:
         tests = tests.filter(test_date__gte=from_date)
@@ -383,8 +480,8 @@ def test_results(request):
         tests = tests.filter(barcode__sequence_number__icontains=barcode)
     if template_used:
         tests = tests.filter(template_used__id=template_used)
-        
-    tests = tests.order_by('-test_date')    
+
+    tests = tests.order_by('-test_date')
 
     counts = tests.aggregate(
         total=Count('id'),

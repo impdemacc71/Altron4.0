@@ -171,6 +171,7 @@ class TestQuestion(models.Model):
 
 class Test(models.Model):
     STATUS_CHOICES = (
+        ('draft', 'Draft'),
         ('pending', 'Pending'),
         ('passed', 'Passed'),
         ('failed', 'Failed'),
