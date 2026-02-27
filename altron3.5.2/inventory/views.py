@@ -312,11 +312,12 @@ def new_test(request):
                     )
 
                 # Log test creation
+                barcode_display = barcode_instance.sequence_number if barcode_instance else 'No Barcode'
                 if test.overall_status == 'failed':
                     SystemLog.log_event(
                         event_type='test_failed',
-                        title=f'Test Failed for {barcode_instance.sequence_number}',
-                        description=f'Test failed for barcode {barcode_instance.sequence_number} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                        title=f'Test Failed for {barcode_display}',
+                        description=f'Test failed for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
                         level='warning',
                         user=request.user,
                         barcode=barcode_instance,
@@ -331,8 +332,8 @@ def new_test(request):
                 elif test.overall_status == 'passed':
                     SystemLog.log_event(
                         event_type='test_passed',
-                        title=f'Test Passed for {barcode_instance.sequence_number}',
-                        description=f'Test passed for barcode {barcode_instance.sequence_number} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                        title=f'Test Passed for {barcode_display}',
+                        description=f'Test passed for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
                         level='info',
                         user=request.user,
                         barcode=barcode_instance,
@@ -374,13 +375,13 @@ def auto_save_test(request):
         overall_status = request.POST.get('overall_status', 'draft')
 
         if not all([sku_id, batch_id, template_id]):
-            return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Missing required fields (SKU, Batch, and Template are required)'}, status=400)
 
         # Get instances
         sku_instance = SKU.objects.get(id=sku_id)
         batch_instance = Batch.objects.get(id=batch_id)
         template_instance = TestTemplate.objects.get(id=template_id)
-        barcode_instance = Barcode.objects.filter(id=barcode_id).first()
+        barcode_instance = Barcode.objects.filter(id=barcode_id).first() if barcode_id else None
 
         # Get or create test
         if test_id:
@@ -389,8 +390,7 @@ def auto_save_test(request):
             test.sku = sku_instance
             test.batch = batch_instance
             test.template_used = template_instance
-            if barcode_instance:
-                test.barcode = barcode_instance
+            test.barcode = barcode_instance
             test.overall_status = overall_status
             test.save()
 

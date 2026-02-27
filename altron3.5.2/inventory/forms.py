@@ -133,7 +133,7 @@ class TestForm(forms.Form):
     )
     barcode = forms.ModelChoiceField(
         queryset=Barcode.objects.all(), # Initial queryset, will be filtered in __init__
-        required=False, # Barcode is optional
+        required=False,
         widget=forms.Select(attrs={'class': 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-900 bg-white'})
     )
     template = forms.ModelChoiceField(

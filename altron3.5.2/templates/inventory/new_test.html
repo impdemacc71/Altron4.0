@@ -193,7 +193,19 @@
 
             <!-- Submit Button -->
             <div class="pt-4">
-                <button type="submit" class="w-full btn-primary text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center space-x-2 text-lg">
+                <div id="validation-error" class="hidden mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-700 font-medium" id="validation-error-message"></p>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" id="submit-test-btn" class="w-full btn-primary text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center space-x-2 text-lg">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
@@ -438,6 +450,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 applyStatusColors();
                 attachAutoSaveListeners();
 
+                // Re-attach field highlight clearing listeners
+                ['id_sku', 'id_batch', 'id_template'].forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        const clearHighlight = () => {
+                            field.classList.remove('border-red-500');
+                            field.classList.add('border-gray-200');
+                        };
+                        field.addEventListener('change', clearHighlight);
+                        field.addEventListener('focus', clearHighlight);
+                    }
+                });
+
             } else {
                 console.error('New form not found in response');
             }
@@ -446,11 +471,129 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Validate form before submission
+    function validateForm(event) {
+        const sku = getElement('id_sku')?.value;
+        const batch = getElement('id_batch')?.value;
+        const template = getElement('id_template')?.value;
+
+        const errorDiv = getElement('validation-error');
+        const errorMessage = getElement('validation-error-message');
+
+        let missingFields = [];
+        let fieldsToHighlight = [];
+
+        // Clear previous highlights
+        document.querySelectorAll('.border-red-500').forEach(el => {
+            el.classList.remove('border-red-500');
+            el.classList.add('border-gray-200');
+        });
+
+        if (!sku) {
+            missingFields.push('SKU');
+            fieldsToHighlight.push('id_sku');
+        }
+        if (!batch) {
+            missingFields.push('Batch');
+            fieldsToHighlight.push('id_batch');
+        }
+        if (!template) {
+            missingFields.push('Test Template');
+            fieldsToHighlight.push('id_template');
+        }
+
+        if (missingFields.length > 0) {
+            event.preventDefault();
+
+            // Highlight missing fields
+            fieldsToHighlight.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.classList.remove('border-gray-200');
+                    field.classList.add('border-red-500');
+                }
+            });
+
+            if (errorDiv && errorMessage) {
+                errorMessage.textContent = `Please select the following required fields: ${missingFields.join(', ')}`;
+                errorDiv.classList.remove('hidden');
+
+                // Scroll to error message
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Auto-hide after 5 seconds and remove highlights
+                setTimeout(() => {
+                    errorDiv.classList.add('hidden');
+                    fieldsToHighlight.forEach(fieldId => {
+                        const field = document.getElementById(fieldId);
+                        if (field) {
+                            field.classList.remove('border-red-500');
+                            field.classList.add('border-gray-200');
+                        }
+                    });
+                }, 5000);
+            }
+            return false;
+        }
+
+        // Check if at least one question has a status
+        const statusFields = document.querySelectorAll('select[name$="_status"]');
+        let hasAnswer = false;
+        statusFields.forEach(field => {
+            if (field.value === 'pass' || field.value === 'fail') {
+                hasAnswer = true;
+            }
+        });
+
+        if (!hasAnswer) {
+            event.preventDefault();
+            if (errorDiv && errorMessage) {
+                errorMessage.textContent = 'Please provide at least one test question result (Pass/Fail) before submitting.';
+                errorDiv.classList.remove('hidden');
+
+                // Scroll to error message
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    errorDiv.classList.add('hidden');
+                }, 5000);
+            }
+            return false;
+        }
+
+        // Hide error if validation passes
+        if (errorDiv) {
+            errorDiv.classList.add('hidden');
+        }
+
+        return true;
+    }
+
     // Initial setup on page load
     initializeTomSelect('id_barcode', 'Select a Barcode...');
     reattachListeners();
     applyStatusColors();
     attachAutoSaveListeners();
+
+    // Add form validation listener
+    const submitBtn = getElement('submit-test-btn');
+    if (submitBtn) {
+        testForm.addEventListener('submit', validateForm);
+    }
+
+    // Clear error highlights when user interacts with fields
+    ['id_sku', 'id_batch', 'id_template'].forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            const clearHighlight = () => {
+                field.classList.remove('border-red-500');
+                field.classList.add('border-gray-200');
+            };
+            field.addEventListener('change', clearHighlight);
+            field.addEventListener('focus', clearHighlight);
+        }
+    });
 });
 </script>
 {% endblock %}

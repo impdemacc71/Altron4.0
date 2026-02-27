@@ -178,7 +178,7 @@ class Test(models.Model):
     )
     sku = models.ForeignKey(SKU, on_delete=models.CASCADE)
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
-    barcode = models.ForeignKey(Barcode, on_delete=models.CASCADE)
+    barcode = models.ForeignKey(Barcode, on_delete=models.CASCADE, null=True, blank=True)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     template_used = models.ForeignKey(TestTemplate, on_delete=models.SET_NULL, null=True, blank=True) # NEW FIELD to record which template was used
     overall_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
