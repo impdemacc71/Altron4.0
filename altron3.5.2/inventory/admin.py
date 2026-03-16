@@ -39,12 +39,23 @@ class TestQuestionAdmin(admin.ModelAdmin):
 class TestAnswerInline(admin.TabularInline):
     model = TestAnswer
     extra = 0
+    # Only show first 20 to prevent page crashes
+    # Users can view/edit all answers via the "View All Answers" button
+    max_num = 20
+    show_full_result_count = False
 
 class TestAdmin(admin.ModelAdmin):
-    list_display = ['barcode', 'sku', 'batch', 'template_used', 'overall_status', 'test_date', 'user']
+    list_display = ['barcode', 'sku', 'batch', 'template_used', 'overall_status', 'test_date', 'user', 'view_answers_button']
     list_filter = ['overall_status', 'test_date', 'sku', 'batch', 'template_used']
     search_fields = ['barcode__sequence_number']
     inlines = [TestAnswerInline]
+
+    def view_answers_button(self, obj):
+        """Add a button to view all answers in a separate paginated page"""
+        from django.urls import reverse
+        url = reverse('admin:inventory_testanswer_changelist') + f'?test__id__exact={obj.id}'
+        return format_html('<a href="{}" class="button" style="background-color: #417690; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;">View All Answers ({})</a>', url, obj.answers.count())
+    view_answers_button.short_description = 'Test Answers'
 
 class BatchAdmin(admin.ModelAdmin):
     list_display = ['sku', 'prefix', 'batch_date', 'quantity', 'spec_template', 'created_at'] # Added spec_template
@@ -64,7 +75,21 @@ admin.site.register(Barcode, BarcodeAdmin)
 admin.site.register(TestTemplate)
 admin.site.register(TestQuestion, TestQuestionAdmin)
 admin.site.register(Test, TestAdmin)
-admin.site.register(TestAnswer)
+# TestAnswer Admin with search and filter capabilities
+@admin.register(TestAnswer)
+class TestAnswerAdmin(admin.ModelAdmin):
+    list_display = ['test', 'question', 'is_passed', 'technical_output', 'remarks_preview']
+    list_filter = ['is_passed', 'test__template_used', 'test__overall_status', 'question']
+    search_fields = ['question__question_text', 'technical_output', 'remarks', 'test__barcode__sequence_number']
+    readonly_fields = ['test']
+    list_select_related = ['test', 'question']  # Optimize queries
+
+    def remarks_preview(self, obj):
+        """Show preview of remarks (first 100 chars)"""
+        if obj.remarks:
+            return obj.remarks[:100] + '...' if len(obj.remarks) > 100 else obj.remarks
+        return '-'
+    remarks_preview.short_description = 'Remarks'
 
 
 # 💡 Existing Admin for Technical Output Choices

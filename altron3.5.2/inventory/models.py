@@ -195,7 +195,8 @@ class Test(models.Model):
         ]
 
     def __str__(self):
-        return f"Test {self.id} - {self.barcode.sequence_number} ({self.overall_status})"
+        barcode_str = self.barcode.sequence_number if self.barcode else 'No Barcode'
+        return f"Test {self.id} - {barcode_str} ({self.overall_status})"
 
 class TestAnswer(models.Model):
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='answers')

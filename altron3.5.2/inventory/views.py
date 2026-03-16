@@ -263,6 +263,7 @@ def new_test(request):
         selected_sku_id = request.POST.get('sku')
         selected_batch_id = request.POST.get('batch')
         selected_template_id = request.POST.get('template')
+        test_id = request.POST.get('test_id')  # Check for existing draft test_id
 
         form = TestForm(request.POST,
                         selected_sku_id=selected_sku_id,
@@ -274,20 +275,48 @@ def new_test(request):
                 return render(request, 'inventory/new_test.html', {'form': form})
             else:
                 logger.debug("Form cleaned data: %s", form.cleaned_data)
-                
+
                 sku_instance = form.cleaned_data['sku']
                 batch_instance = form.cleaned_data['batch']
                 barcode_instance = form.cleaned_data['barcode']
                 template_instance = form.cleaned_data['template']
 
-                test = Test.objects.create(
-                    sku=sku_instance,
-                    batch=batch_instance,
-                    barcode=barcode_instance,
-                    user=request.user,
-                    template_used=template_instance,
-                    overall_status=form.cleaned_data['overall_status']
-                )
+                # Check if we're updating an existing draft or creating new
+                if test_id:
+                    try:
+                        test = Test.objects.get(id=test_id, user=request.user, overall_status='draft')
+                        # Update existing draft
+                        test.sku = sku_instance
+                        test.batch = batch_instance
+                        test.barcode = barcode_instance
+                        test.template_used = template_instance
+                        test.overall_status = form.cleaned_data['overall_status']
+                        test.save()
+
+                        # Delete old answers and recreate them
+                        TestAnswer.objects.filter(test=test).delete()
+                        logger.debug(f"Updated existing draft test {test.id}")
+                    except Test.DoesNotExist:
+                        # Draft not found, create new test instead
+                        logger.warning(f"Draft test {test_id} not found, creating new test")
+                        test = Test.objects.create(
+                            sku=sku_instance,
+                            batch=batch_instance,
+                            barcode=barcode_instance,
+                            user=request.user,
+                            template_used=template_instance,
+                            overall_status=form.cleaned_data['overall_status']
+                        )
+                else:
+                    # Create new test
+                    test = Test.objects.create(
+                        sku=sku_instance,
+                        batch=batch_instance,
+                        barcode=barcode_instance,
+                        user=request.user,
+                        template_used=template_instance,
+                        overall_status=form.cleaned_data['overall_status']
+                    )
                 
                 questions = TestQuestion.objects.filter(template=template_instance)
                 for question in questions:
@@ -352,7 +381,75 @@ def new_test(request):
             return render(request, 'inventory/new_test.html', {'form': form})
 
     else:
-        form = TestForm()
+        # Check if resuming a draft
+        resume_draft_id = request.GET.get('resume_draft')
+        initial_data = {}
+        resume_test = None
+
+        if resume_draft_id:
+            try:
+                # Load the draft test
+                resume_test = Test.objects.get(
+                    id=resume_draft_id,
+                    user=request.user,
+                    overall_status='draft'
+                )
+
+                # Pre-fill form with draft data
+                initial_data = {
+                    'sku': resume_test.sku_id,
+                    'batch': resume_test.batch_id,
+                    'barcode': resume_test.barcode_id if resume_test.barcode else None,
+                    'template': resume_test.template_used_id,
+                    'overall_status': resume_test.overall_status
+                }
+
+                # Pre-fill answers
+                for answer in resume_test.answers.select_related('question').all():
+                    status_field_name = f'question_{answer.question_id}_status'
+                    output_field_name = f'question_{answer.question_id}_output'
+                    remarks_field_name = f'question_{answer.question_id}_remarks'
+
+                    initial_data[status_field_name] = 'pass' if answer.is_passed else 'fail'
+                    if answer.technical_output:
+                        initial_data[output_field_name] = answer.technical_output
+                    if answer.remarks:
+                        initial_data[remarks_field_name] = answer.remarks
+
+                logger.info(f"Resuming draft test {resume_draft_id}")
+
+                # Create form with initial data AND selected template
+                # The selected_template_id kwarg tells the form to load question fields
+                form = TestForm(
+                    initial=initial_data,
+                    selected_sku_id=resume_test.sku_id,
+                    selected_batch_id=resume_test.batch_id,
+                    selected_template_id=resume_test.template_used_id
+                )
+
+            except Test.DoesNotExist:
+                logger.warning(f"Draft test {resume_draft_id} not found")
+                form = TestForm()
+        else:
+            form = TestForm()
+
+        # Check for user's recent draft tests (exclude the one being resumed)
+        draft_tests = Test.objects.filter(
+            user=request.user,
+            overall_status='draft'
+        ).select_related('sku', 'batch', 'template_used').order_by('-updated_at')
+
+        # If resuming a specific draft, exclude it from the list
+        if resume_test:
+            draft_tests = draft_tests.exclude(id=resume_test.id)
+
+        draft_tests = draft_tests[:5]
+
+        return render(request, 'inventory/new_test.html', {
+            'form': form,
+            'draft_tests': draft_tests,
+            'resume_test_id': resume_test.id if resume_test else None
+        })
 
     return render(request, 'inventory/new_test.html', {'form': form})
 
@@ -452,6 +549,41 @@ def auto_save_test(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
+def get_test_draft(request, test_id):
+    """API endpoint to fetch draft test data for resuming"""
+    if request.user.role not in ['admin', 'tester']:
+        return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+
+    try:
+        test = Test.objects.get(id=test_id, user=request.user, overall_status='draft')
+
+        # Serialize answers data
+        answers_data = []
+        for answer in test.answers.select_related('question').all():
+            answers_data.append({
+                'question_id': answer.question_id,
+                'is_passed': answer.is_passed,
+                'technical_output': answer.technical_output or '',
+                'remarks': answer.remarks or ''
+            })
+
+        return JsonResponse({
+            'status': 'success',
+            'test_id': test.id,
+            'sku_id': test.sku_id,
+            'batch_id': test.batch_id,
+            'template_id': test.template_used_id,
+            'barcode_id': test.barcode_id or '',
+            'overall_status': test.overall_status,
+            'answers': answers_data
+        })
+    except Test.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Draft not found or cannot be accessed'}, status=404)
+    except Exception as e:
+        logger.error(f"Error fetching draft: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
 @never_cache # Added never_cache decorator
 def test_results(request):
     if request.user.role not in ['admin', 'tester']:
@@ -463,10 +595,11 @@ def test_results(request):
     batch = request.GET.get('batch')
     barcode = request.GET.get('barcode')
     template_used = request.GET.get('template_used')
+    overall_status = request.GET.get('overall_status')
 
     # Performance fix: Add select_related to prevent N+1 queries
-    # Exclude draft tests from results
-    tests = Test.objects.select_related('sku', 'batch', 'barcode', 'template_used', 'user').exclude(overall_status='draft')
+    # Include all tests (drafts are now shown in results)
+    tests = Test.objects.select_related('sku', 'batch', 'barcode', 'template_used', 'user')
 
     if from_date:
         tests = tests.filter(test_date__gte=from_date)
@@ -480,6 +613,8 @@ def test_results(request):
         tests = tests.filter(barcode__sequence_number__icontains=barcode)
     if template_used:
         tests = tests.filter(template_used__id=template_used)
+    if overall_status:
+        tests = tests.filter(overall_status=overall_status)
 
     tests = tests.order_by('-test_date')
 
@@ -487,7 +622,8 @@ def test_results(request):
         total=Count('id'),
         passed=Count('id', filter=Q(overall_status='passed')),
         failed=Count('id', filter=Q(overall_status='failed')),
-        pending=Count('id', filter=Q(overall_status='pending'))
+        pending=Count('id', filter=Q(overall_status='pending')),
+        draft=Count('id', filter=Q(overall_status='draft'))
     )
 
     context = {
@@ -502,6 +638,7 @@ def test_results(request):
         'batch': batch,
         'barcode': barcode,
         'template_used': template_used,
+        'overall_status': overall_status,
     }
     return render(request, 'inventory/test_results.html', context)
 
@@ -509,7 +646,7 @@ def test_results(request):
 @login_required
 @never_cache # Added never_cache decorator
 def test_detail(request, test_id):
-    if request.user.role not in ['admin', 'tester']:
+    if request.user.role not in ['admin', 'tester', 'service']:
         return redirect('dashboard')
     
     test = get_object_or_404(Test.objects.select_related('sku', 'batch', 'barcode', 'user', 'template_used'), id=test_id)
