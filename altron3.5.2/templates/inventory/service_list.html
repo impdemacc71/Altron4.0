@@ -150,6 +150,43 @@
             </div>
         </div>
     </div>
+    {% elif legacy_info %}
+    <!-- Legacy Product Info Card -->
+    <div class="card p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex-1">
+                <h3 class="text-sm sm:text-base font-bold text-gray-900 mb-2 flex items-center">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Barcode: <span class="text-amber-700">{{ legacy_info.serial_number }}</span>
+                    <span class="ml-2 inline-flex px-2.5 py-0.5 text-[10px] sm:text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">Legacy Product</span>
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Product Type</p>
+                        <p class="text-xs sm:text-sm font-bold text-amber-700">Old / Legacy</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">Service Cases</p>
+                        <p class="text-xs sm:text-sm font-bold text-gray-900">{{ legacy_info.service_case_count }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] sm:text-[10px] text-gray-500 font-medium">First Recorded</p>
+                        <p class="text-xs sm:text-sm font-bold text-gray-900">{{ legacy_info.first_case_date|date:"Y-m-d" }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <a href="{% url 'create_service_case' %}" class="btn-secondary text-white px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all inline-flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                    <span>New Service</span>
+                </a>
+            </div>
+        </div>
+    </div>
     {% elif serial_number and not searched_barcode %}
     <!-- Barcode Not Found -->
     <div class="card p-3 sm:p-4 bg-red-50 border-2 border-red-200">
@@ -159,7 +196,10 @@
             </svg>
             <div>
                 <h3 class="text-sm sm:text-base font-bold text-red-800">Barcode Not Found</h3>
-                <p class="text-xs sm:text-sm text-red-700">No barcode found matching <strong>"{{ serial_number }}"</strong>. Please check the serial number and try again.</p>
+                <p class="text-xs sm:text-sm text-red-700">No barcode or legacy records found for <strong>"{{ serial_number }}"</strong>.</p>
+                <a href="{% url 'create_service_case' %}" class="mt-2 inline-block text-xs sm:text-sm text-purple-600 font-semibold hover:text-purple-800">
+                    + Create a new service case for this serial number
+                </a>
             </div>
         </div>
     </div>
@@ -257,7 +297,7 @@
                                     <div class="text-[10px] sm:text-xs sm:text-sm font-medium text-gray-900">{{ case.case_id }}</div>
                                 </td>
                                 <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden sm:table-cell">
-                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.barcode.sequence_number|default:"N/A" }}</div>
+                                    <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.barcode.sequence_number|default:case.manual_serial_number|default:"N/A" }}{% if case.is_legacy %} <span class="inline-flex px-1.5 py-0.5 text-[8px] font-bold rounded-full bg-amber-100 text-amber-700">Legacy</span>{% endif %}</div>
                                 </td>
                                 <td class="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 whitespace-nowrap hidden md:table-cell">
                                     <div class="text-[10px] sm:text-xs sm:text-sm text-gray-600">{{ case.service_date|date:"Y-m-d" }}</div>

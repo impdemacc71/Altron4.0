@@ -251,6 +251,10 @@ class ServiceCase(models.Model):
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name='service_cases', help_text="Reference to the original test record")
     barcode = models.ForeignKey(Barcode, on_delete=models.SET_NULL, null=True, blank=True, related_name='service_cases', help_text="Barcode being serviced")
 
+    # Manual serial number for legacy/old products not in the barcode system
+    manual_serial_number = models.CharField(max_length=100, blank=True, null=True, help_text="Manually entered serial number for old/legacy products")
+    is_legacy = models.BooleanField(default=False, help_text="True if this is a legacy product not found in the barcode system")
+
     # Service identification
     case_id = models.CharField(max_length=20, unique=True, editable=False, help_text="Unique service case identifier (e.g., SVC-2025-0001)")
 
@@ -291,7 +295,8 @@ class ServiceCase(models.Model):
         verbose_name_plural = "Service Cases"
 
     def __str__(self):
-        return f"{self.case_id} - {self.barcode.sequence_number if self.barcode else 'No Barcode'}"
+        serial = self.barcode.sequence_number if self.barcode else (self.manual_serial_number or 'No Barcode')
+        return f"{self.case_id} - {serial}"
 
     def save(self, *args, **kwargs):
         # Auto-generate case ID if not provided

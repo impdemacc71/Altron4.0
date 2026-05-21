@@ -1,6 +1,6 @@
 import string
 from django import forms
-from django.db import models
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 from .models import CustomUser, SKU, Batch, Barcode, Test, TestQuestion, TestAnswer, TestTemplate, TechnicalOutputChoice, BatchSpecTemplate, Technician 
@@ -159,11 +159,14 @@ class TestForm(forms.Form):
         else:
             self.fields['batch'].queryset = Batch.objects.none()
 
-        # Filter Barcode choices based on selected Batch
+        # Filter Barcode choices based on selected Batch — annotated with test counts
         if selected_batch_id:
-            self.fields['barcode'].queryset = Barcode.objects.filter(batch_id=selected_batch_id)
+            self.fields['barcode'].queryset = self._get_annotated_barcode_qs(batch_id=selected_batch_id)
         else:
             self.fields['barcode'].queryset = Barcode.objects.none()
+
+        # Override label to show test status tags
+        self.fields['barcode'].label_from_instance = self._barcode_label
         
         
         # FINAL FIX: Use a comprehension to guarantee clean (value, label) tuples
@@ -232,7 +235,38 @@ class TestForm(forms.Form):
             self.fields['batch'].queryset = Batch.objects.filter(sku_id=self.initial['sku'])
         
         if self.initial.get('batch'):
-            self.fields['barcode'].queryset = Barcode.objects.filter(batch_id=self.initial['batch'])
+            self.fields['barcode'].queryset = self._get_annotated_barcode_qs(batch_id=self.initial['batch'])
+
+    @staticmethod
+    def _get_annotated_barcode_qs(batch_id):
+        """Return barcode queryset annotated with test counts per status."""
+        return Barcode.objects.filter(batch_id=batch_id).annotate(
+            test_count=Count('test'),
+            passed_count=Count('test', filter=Q(test__overall_status='passed')),
+            failed_count=Count('test', filter=Q(test__overall_status='failed')),
+            draft_count=Count('test', filter=Q(test__overall_status='draft')),
+        )
+
+    @staticmethod
+    def _barcode_label(obj):
+        """Custom label for barcode dropdown showing test status tags."""
+        parts = [obj.sequence_number]
+        test_count = getattr(obj, 'test_count', 0)
+        if test_count == 0:
+            parts.append('— (0)')
+        else:
+            tags = []
+            passed = getattr(obj, 'passed_count', 0)
+            failed = getattr(obj, 'failed_count', 0)
+            draft = getattr(obj, 'draft_count', 0)
+            if passed:
+                tags.append(f'Passed ({passed})')
+            if failed:
+                tags.append(f'Failed ({failed})')
+            if draft:
+                tags.append(f'Draft ({draft})')
+            parts.append('— ' + ' · '.join(tags) if tags else f'— ({test_count})')
+        return ' '.join(parts)
 
 
 # This is the dedicated form for updating overall status on the test_detail page

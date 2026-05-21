@@ -483,6 +483,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 testForm.innerHTML = newForm.innerHTML;
                 testForm.dataset.newTestUrl = url;
 
+                // Re-sync the hidden test_id field from the JS variable
+                const testIdField = document.getElementById('test_id');
+                if (testIdField && currentTestId) {
+                    testIdField.value = currentTestId;
+                }
+
                 // Re-initialize and restore values on the new form content
                 getElement('id_sku').value = currentValues.sku;
                 getElement('id_batch').value = currentValues.batch;
@@ -531,6 +537,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Validate form before submission
     function validateForm(event) {
+        // Sync hidden test_id field before submission
+        const testIdField = document.getElementById('test_id');
+        if (testIdField && currentTestId) {
+            testIdField.value = currentTestId;
+        }
+
         const sku = getElement('id_sku')?.value;
         const batch = getElement('id_batch')?.value;
         const template = getElement('id_template')?.value;

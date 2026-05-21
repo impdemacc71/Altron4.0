@@ -831,16 +831,33 @@ def create_service_case(request, barcode_id=None, test_id=None):
         # Get barcode and test from form data
         barcode_id_form = request.POST.get('barcode_id')
         test_id_form = request.POST.get('test_id')
+        manual_serial_number = request.POST.get('manual_serial_number', '').strip()
+        is_legacy = False
 
-        if barcode_id_form:
-            barcode = get_object_or_404(Barcode, id=barcode_id_form)
-        if test_id_form:
-            test = get_object_or_404(Test, id=test_id_form)
+        if manual_serial_number:
+            # Try to find an existing barcode matching the entered serial
+            barcode = Barcode.objects.filter(sequence_number__iexact=manual_serial_number).first()
+            if barcode:
+                # Found in system — link via FK, auto-fetch latest test
+                test = Test.objects.filter(barcode=barcode).order_by('-test_date').first()
+                is_legacy = False
+            else:
+                # NOT found — this is a legacy/old product
+                barcode = None
+                test = None
+                is_legacy = True
+        else:
+            if barcode_id_form:
+                barcode = get_object_or_404(Barcode, id=barcode_id_form)
+            if test_id_form:
+                test = get_object_or_404(Test, id=test_id_form)
 
         # Create service case
         service_case = ServiceCase(
             test=test,
             barcode=barcode,
+            manual_serial_number=manual_serial_number if manual_serial_number else None,
+            is_legacy=is_legacy,
             service_date=request.POST.get('service_date'),
             technician=request.user.username,
             issue_description=request.POST.get('issue_description'),
@@ -857,10 +874,11 @@ def create_service_case(request, barcode_id=None, test_id=None):
         service_case.save()
 
         # Log service case creation
+        serial_display = barcode.sequence_number if barcode else (manual_serial_number or 'N/A')
         SystemLog.log_event(
             event_type='service_created',
             title=f'Service Case {service_case.case_id} Created',
-            description=f'Service case created for barcode {barcode.sequence_number if barcode else "N/A"}',
+            description=f'Service case created for {"legacy " if is_legacy else ""}barcode {serial_display}',
             level='info',
             user=request.user,
             barcode=barcode,
@@ -870,10 +888,13 @@ def create_service_case(request, barcode_id=None, test_id=None):
             details={
                 'status': service_case.status,
                 'service_date': str(service_case.service_date),
-                'issue_description': service_case.issue_description[:100],  # First 100 chars
+                'issue_description': service_case.issue_description[:100],
+                'is_legacy': is_legacy,
+                'manual_serial_number': manual_serial_number or None,
             }
         )
 
+        messages.success(request, f'Service case {service_case.case_id} created successfully!')
         return redirect('service_detail', case_id=service_case.case_id)
 
     context = {
@@ -942,9 +963,10 @@ def service_list(request):
     # Barcode search - check if barcode exists and if it has service cases
     searched_barcode = None
     barcode_info = None
+    legacy_info = None
 
     if serial_number:
-        # Try to find the barcode
+        # Try to find the barcode in the system
         searched_barcode = Barcode.objects.filter(
             sequence_number__icontains=serial_number
         ).first()
@@ -961,11 +983,22 @@ def service_list(request):
                 'service_case_count': service_cases.filter(barcode=searched_barcode).count()
             }
 
-            # Filter service cases for this barcode only
-            service_cases = service_cases.filter(barcode=searched_barcode)
+            # Filter: system barcode match OR legacy manual_serial_number match
+            service_cases = service_cases.filter(
+                Q(barcode=searched_barcode) | Q(manual_serial_number__icontains=serial_number)
+            )
         else:
-            # Barcode not found
-            service_cases = ServiceCase.objects.none()
+            # Barcode not found in system — search legacy cases by manual_serial_number
+            legacy_cases = service_cases.filter(manual_serial_number__icontains=serial_number)
+            if legacy_cases.exists():
+                service_cases = legacy_cases
+                legacy_info = {
+                    'serial_number': serial_number,
+                    'service_case_count': legacy_cases.count(),
+                    'first_case_date': legacy_cases.order_by('created_at').first().created_at,
+                }
+            else:
+                service_cases = ServiceCase.objects.none()
 
     # Apply other filters (only if not searching by specific barcode)
     else:
@@ -999,6 +1032,7 @@ def service_list(request):
         'status_choices': ServiceCase.CASE_STATUS_CHOICES,
         'searched_barcode': searched_barcode,
         'barcode_info': barcode_info,
+        'legacy_info': legacy_info,
         'counts': counts,
     }
     return render(request, 'inventory/service_list.html', context)

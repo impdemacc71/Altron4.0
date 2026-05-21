@@ -49,6 +49,26 @@
             <input type="hidden" name="barcode_id" value="{% if barcode %}{{ barcode.id }}{% endif %}">
             <input type="hidden" name="test_id" value="{% if test %}{{ test.id }}{% endif %}">
 
+            <!-- Manual Barcode Entry -->
+            {% if not barcode %}
+            <div class="space-y-1.5 mb-4">
+                <label for="manual_serial_number" class="flex items-center text-xs sm:text-sm font-semibold text-gray-700">
+                    <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                    </svg>
+                    Serial Number / Barcode *
+                </label>
+                <input
+                    type="text"
+                    id="manual_serial_number"
+                    name="manual_serial_number"
+                    required
+                    placeholder="Enter Serial No or Barcode"
+                    class="w-full px-3 py-2.5 sm:px-4 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm sm:text-base bg-white"
+                >
+            </div>
+            {% endif %}
+
             <!-- Basic Information -->
             <div class="space-y-3 sm:space-y-4">
                 <h3 class="text-base sm:text-lg font-bold gradient-text">Service Information</h3>
