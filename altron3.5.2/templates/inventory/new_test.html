@@ -112,6 +112,41 @@
                     </div>
                 </div>
 
+                <!-- Date Range Filter -->
+                <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 mb-8">
+                    <div class="flex flex-col sm:flex-row items-end gap-4">
+                        <div class="flex-1 w-full">
+                            <label for="from_date" class="flex items-center text-xs font-bold text-purple-700 uppercase mb-1.5">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Batch From Date
+                            </label>
+                            <input type="date" id="from_date" name="from_date" value="{{ from_date }}" 
+                                   class="w-full px-4 py-2.5 border-2 border-white rounded-lg focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all text-sm bg-white shadow-sm">
+                        </div>
+                        <div class="flex-1 w-full">
+                            <label for="to_date" class="flex items-center text-xs font-bold text-purple-700 uppercase mb-1.5">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Batch To Date
+                            </label>
+                            <input type="date" id="to_date" name="to_date" value="{{ to_date }}"
+                                   class="w-full px-4 py-2.5 border-2 border-white rounded-lg focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all text-sm bg-white shadow-sm">
+                        </div>
+                        <div class="w-full sm:w-auto">
+                            <button type="button" id="apply-date-filter" class="w-full px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                                </svg>
+                                Filter
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-purple-600 mt-2 italic">* Filters SKUs and Batches based on Batch creation date</p>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="space-y-2">
                     <label for="id_sku" class="flex items-center text-sm font-semibold text-gray-700">
@@ -439,13 +474,34 @@ document.addEventListener('DOMContentLoaded', function() {
             newTemplateSelect.addEventListener('change', handler);
             eventListeners.set(newTemplateSelect, handler);
         }
+
+        // Add date filter listeners
+        const fromDateInput = getElement('from_date');
+        const toDateInput = getElement('to_date');
+        const applyBtn = getElement('apply-date-filter');
+
+        if (fromDateInput) {
+            fromDateInput.addEventListener('change', handler);
+            eventListeners.set(fromDateInput, handler);
+        }
+        if (toDateInput) {
+            toDateInput.addEventListener('change', handler);
+            eventListeners.set(toDateInput, handler);
+        }
+        if (applyBtn) {
+            applyBtn.addEventListener('click', handler);
+            eventListeners.set(applyBtn, handler);
+        }
     }
 
     function updateFormContent() {
         let data = new FormData(testForm);
-        let url = testForm.dataset.newTestUrl;
-
-        return fetch(url, {
+        let url = new URL(testForm.dataset.newTestUrl, window.location.origin);
+        
+        // Ensure date filters are in the data (FormData should have them if they are in the form)
+        // and also put them in the URL for consistency if needed, but the backend checks POST too.
+        
+        return fetch(url.toString(), {
             method: 'POST',
             body: data,
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -466,6 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     template: getElement('id_template')?.value || '',
                     overallStatus: getElement('id_overall_status')?.value || '',
                     barcode: getElement('id_barcode')?.value || '',
+                    fromDate: getElement('from_date')?.value || '',
+                    toDate: getElement('to_date')?.value || '',
                     // This line now saves ALL dynamic fields (status, output, and remarks)
                     qFields: [...testForm.querySelectorAll('select[name^="question_"], textarea[name^="question_"]')].reduce((acc, field) => {
                         acc[field.name] = field.value;
@@ -494,6 +552,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 getElement('id_batch').value = currentValues.batch;
                 getElement('id_template').value = currentValues.template;
                 getElement('id_overall_status').value = currentValues.overallStatus;
+
+                // Restore date filters
+                if (currentValues.fromDate) getElement('from_date').value = currentValues.fromDate;
+                if (currentValues.toDate) getElement('to_date').value = currentValues.toDate;
 
                 // Restore ALL dynamic fields
                 Object.entries(currentValues.qFields).forEach(([name, value]) => {

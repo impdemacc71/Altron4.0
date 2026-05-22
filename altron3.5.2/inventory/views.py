@@ -15,6 +15,7 @@ from django.template.loader import get_template
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from datetime import timedelta
 
 
 SPEC_FIELD_MAP = {
@@ -56,12 +57,36 @@ def user_login(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            
+            # Log successful login
+            SystemLog.log_event(
+                event_type='user_login',
+                title=f'User {user.username} Logged In',
+                level='info',
+                user=user,
+                request=request
+            )
+            
+            # Trigger 30-day log cleanup
+            try:
+                SystemLog.cleanup()
+            except Exception as e:
+                logger.error(f"Log cleanup failed: {e}")
+
             return redirect('dashboard')
         else:
             return render(request, 'inventory/login.html', {'error': 'Invalid credentials'})
     return render(request, 'inventory/login.html')
 
 def user_logout(request):
+    if request.user.is_authenticated:
+        SystemLog.log_event(
+            event_type='user_logout',
+            title=f'User {request.user.username} Logged Out',
+            level='info',
+            user=request.user,
+            request=request
+        )
     logout(request)
     return redirect('login')
 
@@ -265,14 +290,30 @@ def new_test(request):
         selected_template_id = request.POST.get('template')
         test_id = request.POST.get('test_id')  # Check for existing draft test_id
 
+        # Parse date filters
+        from_date = request.GET.get('from_date') or request.POST.get('from_date')
+        to_date = request.GET.get('to_date') or request.POST.get('to_date')
+        
+        # Set default values if not provided (last 30 days)
+        if not to_date:
+            to_date = timezone.now().date().isoformat()
+        if not from_date:
+            from_date = (timezone.now().date() - timedelta(days=30)).isoformat()
+
         form = TestForm(request.POST,
                         selected_sku_id=selected_sku_id,
                         selected_batch_id=selected_batch_id,
-                        selected_template_id=selected_template_id)
+                        selected_template_id=selected_template_id,
+                        from_date=from_date,
+                        to_date=to_date)
 
         if form.is_valid():
             if is_ajax:
-                return render(request, 'inventory/new_test.html', {'form': form})
+                return render(request, 'inventory/new_test.html', {
+                    'form': form,
+                    'from_date': from_date,
+                    'to_date': to_date,
+                })
             else:
                 logger.debug("Form cleaned data: %s", form.cleaned_data)
 
@@ -445,10 +486,22 @@ def new_test(request):
 
         draft_tests = draft_tests[:5]
 
+        # Parse date filters for initial load
+        from_date = request.GET.get('from_date')
+        to_date = request.GET.get('to_date')
+        
+        # Set default values if not provided (last 30 days)
+        if not to_date:
+            to_date = timezone.now().date().isoformat()
+        if not from_date:
+            from_date = (timezone.now().date() - timedelta(days=30)).isoformat()
+
         return render(request, 'inventory/new_test.html', {
             'form': form,
             'draft_tests': draft_tests,
-            'resume_test_id': resume_test.id if resume_test else None
+            'resume_test_id': resume_test.id if resume_test else None,
+            'from_date': from_date,
+            'to_date': to_date,
         })
 
     return render(request, 'inventory/new_test.html', {'form': form})
@@ -1165,6 +1218,19 @@ def service_detail(request, case_id):
             # Automatically set technician to logged-in user
             updated_case.technician = request.user.username
             updated_case.save()
+
+            # Log service case update
+            SystemLog.log_event(
+                event_type='service_updated',
+                title=f'Service Case {service_case.case_id} Updated',
+                description=f'Status updated to: {service_case.get_status_display()}',
+                level='info',
+                user=request.user,
+                service_case=service_case,
+                request=request,
+                details={'status': service_case.status}
+            )
+
             messages.success(request, f'Service case {service_case.case_id} updated successfully!')
             return redirect('service_detail', case_id=service_case.case_id)
     else:
@@ -1223,3 +1289,40 @@ def print_service_case_detail(request, case_id):
         logger.error(f"WeasyPrint PDF generation failed: {e}", exc_info=True)
         return HttpResponse(f"Error generating PDF: {e}", status=500)
 
+@login_required
+def reorder_questions(request, template_id):
+    """View to handle drag-and-drop reordering of questions within a template"""
+    if request.user.role != 'admin':
+        return redirect('dashboard')
+        
+    template = get_object_or_404(TestTemplate, id=template_id)
+    
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+            ordered_ids = data.get('ordered_ids', [])
+            
+            # Bulk update orders
+            for i, question_id in enumerate(ordered_ids):
+                TestQuestion.objects.filter(id=question_id, template=template).update(order=i)
+            
+            # Log the action
+            SystemLog.log_event(
+                event_type='template_managed',
+                title=f'Question Order Updated',
+                description=f'Questions reordered for template "{template.name}".',
+                level='info',
+                user=request.user,
+                request=request
+            )
+            
+            return HttpResponse(json.dumps({'status': 'success'}), content_type='application/json')
+        except Exception as e:
+            return HttpResponse(json.dumps({'status': 'error', 'message': str(e)}), status=400, content_type='application/json')
+            
+    questions = template.questions.all().order_by('order', 'id')
+    return render(request, 'inventory/reorder_questions.html', {
+        'template': template,
+        'questions': questions
+    })

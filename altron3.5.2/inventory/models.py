@@ -125,12 +125,30 @@ class Batch(models.Model):
                         batch=self,
                         sku=self.sku,
                         sequence_number=full_code,
-                        #barcode_image=generate_barcode(full_code)
                     )
                 )
                 next_suffix = increment_suffix(next_suffix)
 
             Barcode.objects.bulk_create(barcodes)
+        else:
+            # Handle quantity reduction for existing batches
+            current_barcodes = Barcode.objects.filter(batch=self).order_by('-sequence_number')
+            current_count = current_barcodes.count()
+            
+            if current_count > self.quantity:
+                # Delete the excess barcodes (last ones by sequence number)
+                diff = current_count - self.quantity
+                ids_to_delete = current_barcodes.values_list('id', flat=True)[:diff]
+                Barcode.objects.filter(id__in=list(ids_to_delete)).delete()
+
+                # Log the modification
+                SystemLog.log_event(
+                    event_type='sequence_adjusted',
+                    title=f'Batch {self.prefix} Quantity Reduced',
+                    description=f'Batch quantity reduced from {current_count} to {self.quantity}. {diff} barcodes were deleted to maintain sequence.',
+                    level='warning',
+                    batch=self
+                )
 
 
 class Barcode(models.Model):
@@ -163,11 +181,12 @@ class TestQuestion(models.Model):
     question_text = models.CharField(max_length=255)
     # Map specific technical outputs to this question
     technical_outputs = models.ManyToManyField('TechnicalOutputChoice', blank=True, related_name='questions')
+    order = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        # Updated string representation to reflect the change
-        return f"Template: {self.template.name} - {self.question_text}"
+        template_name = self.template.name if self.template else "Unassigned"
+        return f"Template: {template_name} - {self.question_text}"
 
 class Test(models.Model):
     STATUS_CHOICES = (
@@ -326,8 +345,15 @@ class SystemLog(models.Model):
         ('service_updated', 'Service Case Updated'),
         ('service_completed', 'Service Case Completed'),
         ('batch_created', 'Batch Created'),
+        ('batch_updated', 'Batch Updated'),
+        ('sequence_adjusted', 'Batch Sequence Adjusted'),
+        ('sku_managed', 'SKU Managed'),
+        ('tech_managed', 'Technician Managed'),
+        ('template_managed', 'Template Managed'),
         ('user_login', 'User Login'),
         ('user_logout', 'User Logout'),
+        ('navigation', 'Page Visit'),
+        ('action_click', 'Button Click'),
         ('system_error', 'System Error'),
         ('validation_error', 'Validation Error'),
         ('performance_issue', 'Performance Issue'),
@@ -418,4 +444,27 @@ class SystemLog(models.Model):
 
         log_entry.save()
         return log_entry
+
+    @classmethod
+    def cleanup(cls):
+        """
+        Delete logs older than LOG_RETENTION_DAYS (default 30)
+        """
+        from django.conf import settings
+        from datetime import timedelta
+        from django.utils import timezone
+
+        retention_days = getattr(settings, 'LOG_RETENTION_DAYS', 30)
+        threshold_date = timezone.now() - timedelta(days=retention_days)
+        
+        deleted_count, _ = cls.objects.filter(timestamp__lt=threshold_date).delete()
+        if deleted_count > 0:
+            # Log the cleanup action itself (optional but good for audit)
+            cls.log_event(
+                event_type='other',
+                title='System Log Cleanup',
+                description=f'Automatically deleted {deleted_count} logs older than {retention_days} days.',
+                level='info'
+            )
+        return deleted_count
 

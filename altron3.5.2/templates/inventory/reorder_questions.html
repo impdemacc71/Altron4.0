@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Reorder Questions</h1>
+            <p class="mt-2 text-lg text-gray-600">Template: <span class="font-semibold text-purple-600">{{ template.name }}</span></p>
+        </div>
+        <a href="/admin/inventory/testtemplate/{{ template.id }}/change/" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all">
+            <svg class="mr-2 h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Template
+        </a>
+    </div>
+
+    <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+        <div class="p-6 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-200">
+            <div class="flex items-center text-sm text-purple-700 font-bold uppercase tracking-wider">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0V12m3.001-3.5a1.5 1.5 0 113 0V12m3 0V5.5a1.5 1.5 0 113 0v10a4.5 4.5 0 01-4.5 4.5h-2a4.5 4.5 0 01-4.5-4.5v-4"/>
+                </svg>
+                Drag and drop questions to set their sequence
+            </div>
+        </div>
+
+        <ul id="sortable-questions" class="divide-y divide-gray-100">
+            {% for question in questions %}
+            <li class="p-5 flex items-center bg-white hover:bg-purple-50 group cursor-grab active:cursor-grabbing transition-colors duration-150" data-id="{{ question.id }}">
+                <div class="mr-4 text-gray-300 group-hover:text-purple-400 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 12h16M4 16h16"/>
+                    </svg>
+                </div>
+                <div class="flex-grow">
+                    <p class="text-gray-900 font-semibold text-lg">{{ question.question_text }}</p>
+                    <div class="flex items-center mt-1 space-x-3">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                            ID: #{{ question.id }}
+                        </span>
+                        {% if question.technical_outputs.exists %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                            {{ question.technical_outputs.count }} outputs mapped
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {% if not questions %}
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No questions found</h3>
+            <p class="mt-1 text-sm text-gray-500">Add some questions to this template first.</p>
+        </div>
+        {% endif %}
+
+        <div class="p-6 bg-gray-50 border-t border-gray-200">
+            <button id="save-order" {% if not questions %}disabled{% endif %} class="w-full inline-flex justify-center items-center px-6 py-4 border border-transparent text-lg font-bold rounded-xl shadow-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg id="save-icon" class="mr-2 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <svg id="loading-icon" class="animate-spin -ml-1 mr-3 h-6 w-6 text-white hidden" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Save New Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const el = document.getElementById('sortable-questions');
+        if (!el) return;
+
+        const sortable = Sortable.create(el, {
+            animation: 200,
+            ghostClass: 'bg-purple-100',
+            chosenClass: 'shadow-2xl',
+            dragClass: 'opacity-0',
+            handle: '.p-5',
+        });
+
+        const saveBtn = document.getElementById('save-order');
+        const saveIcon = document.getElementById('save-icon');
+        const loadingIcon = document.getElementById('loading-icon');
+
+        saveBtn.addEventListener('click', function() {
+            const orderedIds = Array.from(el.querySelectorAll('li')).map(li => li.dataset.id);
+            
+            // Show loading state
+            saveBtn.disabled = true;
+            saveIcon.classList.add('hidden');
+            loadingIcon.classList.remove('hidden');
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ ordered_ids: orderedIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Success state
+                    saveBtn.innerHTML = `
+                        <svg class="mr-2 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Order Updated!
+                    `;
+                    saveBtn.classList.replace('bg-purple-600', 'bg-green-600');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/admin/inventory/testtemplate/{{ template.id }}/change/';
+                    }, 800);
+                } else {
+                    alert('Error: ' + data.message);
+                    resetButton();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+                resetButton();
+            });
+        });
+
+        function resetButton() {
+            saveBtn.disabled = false;
+            saveIcon.classList.remove('hidden');
+            loadingIcon.classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}

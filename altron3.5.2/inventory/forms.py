@@ -150,14 +150,29 @@ class TestForm(forms.Form):
         selected_sku_id = kwargs.pop('selected_sku_id', None)
         selected_batch_id = kwargs.pop('selected_batch_id', None)
         selected_template_id = kwargs.pop('selected_template_id', None)
+        from_date = kwargs.pop('from_date', None)
+        to_date = kwargs.pop('to_date', None)
         
         super().__init__(*args, **kwargs)
 
+        # Apply date filters to the main querysets
+        if from_date and to_date:
+            batch_qs = Batch.objects.filter(created_at__date__range=[from_date, to_date])
+            sku_qs = SKU.objects.filter(batch__created_at__date__range=[from_date, to_date]).distinct()
+            self.fields['sku'].queryset = sku_qs
+            self.fields['batch'].queryset = batch_qs
+
         # Filter Batch choices based on selected SKU
         if selected_sku_id:
-            self.fields['batch'].queryset = Batch.objects.filter(sku_id=selected_sku_id)
+            batch_filter_qs = Batch.objects.filter(sku_id=selected_sku_id)
+            if from_date and to_date:
+                batch_filter_qs = batch_filter_qs.filter(created_at__date__range=[from_date, to_date])
+            self.fields['batch'].queryset = batch_filter_qs
         else:
-            self.fields['batch'].queryset = Batch.objects.none()
+            # If no SKU is selected, we still want to show the filtered batches 
+            # if they aren't already filtered by the selected SKU logic
+            if not from_date or not to_date:
+                self.fields['batch'].queryset = Batch.objects.none()
 
         # Filter Barcode choices based on selected Batch — annotated with test counts
         if selected_batch_id:
@@ -187,7 +202,7 @@ class TestForm(forms.Form):
         if current_template_id:
             try:
                 template_instance = TestTemplate.objects.get(pk=current_template_id)
-                questions = TestQuestion.objects.filter(template=template_instance).order_by('id')
+                questions = TestQuestion.objects.filter(template=template_instance).order_by('order', 'id')
                 for question in questions:
                     self.fields[f'question_{question.id}_status'] = forms.ChoiceField(
                         choices=[('fail', 'Fail'), ('pass', 'Pass')],

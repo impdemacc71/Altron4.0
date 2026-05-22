@@ -51,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "inventory.middleware.UserActivityMiddleware",
 ]
 
 ROOT_URLCONF = "ups_manufacturing.urls"
@@ -151,6 +152,7 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
-SESSION_COOKIE_AGE = 900  # 15 minutes in seconds (15 * 60 = 900)
+SESSION_COOKIE_AGE = 2100  # 35 minutes in seconds (35 * 60 = 2100)
 SESSION_SAVE_EVERY_REQUEST = False  # Performance fix: Only save session when it changes
+LOG_RETENTION_DAYS = 10
 PRODUCT_NAME = "CoreInspect" # <--- CHANGE THIS TO YOUR DESIRED PRODUCT NAME

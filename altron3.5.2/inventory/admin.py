@@ -72,7 +72,59 @@ admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(SKU)
 admin.site.register(Batch, BatchAdmin)
 admin.site.register(Barcode, BarcodeAdmin)
-admin.site.register(TestTemplate)
+@admin.register(TestTemplate)
+class TestTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'question_count', 'reorder_link']
+    search_fields = ['name']
+    actions = ['clone_templates']
+    
+    def question_count(self, obj):
+        return obj.questions.count()
+    question_count.short_description = 'Questions'
+    
+    def reorder_link(self, obj):
+        from django.urls import reverse
+        url = reverse('reorder_questions', args=[obj.pk])
+        return format_html('<a href="{}" class="button" style="background-color: #79aec8; color: white;">Reorder Questions</a>', url)
+    reorder_link.short_description = 'Sequence'
+
+    @admin.action(description="Clone selected templates (Deep Copy)")
+    def clone_templates(self, request, queryset):
+        clone_count = 0
+        for template in queryset:
+            # 1. Create new template name
+            new_name = f"Copy of {template.name}"
+            counter = 1
+            while TestTemplate.objects.filter(name=new_name).exists():
+                new_name = f"Copy of {template.name} ({counter})"
+                counter += 1
+            
+            # 2. Duplicate template
+            new_template = TestTemplate.objects.create(
+                name=new_name,
+                description=template.description
+            )
+            
+            # 3. Duplicate each question
+            for question in template.questions.all():
+                # Save M2M original references
+                outputs = list(question.technical_outputs.all())
+                
+                # Create duplicate question
+                new_question = TestQuestion.objects.create(
+                    template=new_template,
+                    question_text=question.question_text,
+                    order=question.order
+                )
+                
+                # Re-link M2M data
+                if outputs:
+                    new_question.technical_outputs.set(outputs)
+            
+            clone_count += 1
+            
+        self.message_user(request, f"Successfully created {clone_count} cloned template(s).")
+
 admin.site.register(TestQuestion, TestQuestionAdmin)
 admin.site.register(Test, TestAdmin)
 # TestAnswer Admin with search and filter capabilities

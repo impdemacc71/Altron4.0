@@ -5,8 +5,8 @@
     'use strict';
 
     // Session Configuration
-    const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
-    const WARNING_TIME = 13 * 60 * 1000;    // 13 minutes (show warning 2 min before expiry)
+    const SESSION_TIMEOUT = 35 * 60 * 1000; // 35 minutes in milliseconds
+    const WARNING_TIME = 5 * 60 * 1000;     // 5 minutes (show warning triggered at 30 min of idle)
     const CHECK_INTERVAL = 1000;            // Check every second
 
     let sessionTimer;
@@ -141,7 +141,7 @@
 
     // Start the session timer
     startSessionTimer();
-    console.log('Session timeout initialized: 15 minutes (warning at 13 minutes)');
+    console.log('Session timeout initialized: 35 minutes (warning after 30 minutes of inactivity)');
 
     // Expose functions globally for onclick handlers
     window.extendSession = extendSession;
