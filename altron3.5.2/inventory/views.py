@@ -322,11 +322,12 @@ def new_test(request):
                 barcode_instance = form.cleaned_data['barcode']
                 template_instance = form.cleaned_data['template']
 
-                # Check if we're updating an existing draft or creating new
+                # Check if we're updating an existing test or creating new
                 if test_id:
                     try:
-                        test = Test.objects.get(id=test_id, user=request.user, overall_status='draft')
-                        # Update existing draft
+                        # Query by id and user only - don't filter by status since we want to update regardless of current status
+                        test = Test.objects.get(id=test_id, user=request.user)
+                        # Update existing test
                         test.sku = sku_instance
                         test.batch = batch_instance
                         test.barcode = barcode_instance
@@ -336,10 +337,10 @@ def new_test(request):
 
                         # Delete old answers and recreate them
                         TestAnswer.objects.filter(test=test).delete()
-                        logger.debug(f"Updated existing draft test {test.id}")
+                        logger.debug(f"Updated existing test {test.id}")
                     except Test.DoesNotExist:
-                        # Draft not found, create new test instead
-                        logger.warning(f"Draft test {test_id} not found, creating new test")
+                        # Test not found, create new test instead
+                        logger.warning(f"Test {test_id} not found, creating new test")
                         test = Test.objects.create(
                             sku=sku_instance,
                             batch=batch_instance,
