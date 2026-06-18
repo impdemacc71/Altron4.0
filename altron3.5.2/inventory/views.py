@@ -323,10 +323,13 @@ def new_test(request):
                 template_instance = form.cleaned_data['template']
 
                 # Check if we're updating an existing test or creating new
+                is_new_test = False  # Flag to track if this is a new test or update
                 if test_id:
                     try:
                         # Query by id and user only - don't filter by status since we want to update regardless of current status
                         test = Test.objects.get(id=test_id, user=request.user)
+                        # Store old status for logging
+                        old_status = test.overall_status
                         # Update existing test
                         test.sku = sku_instance
                         test.batch = batch_instance
@@ -338,9 +341,31 @@ def new_test(request):
                         # Delete old answers and recreate them
                         TestAnswer.objects.filter(test=test).delete()
                         logger.debug(f"Updated existing test {test.id}")
+
+                        # Log status change if status changed
+                        barcode_display = barcode_instance.sequence_number if barcode_instance else 'No Barcode'
+                        if old_status != test.overall_status:
+                            SystemLog.log_event(
+                                event_type='test_status_changed',
+                                title=f'Test Status Changed: {old_status.upper()} → {test.overall_status.upper()}',
+                                description=f'Test for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix}) status changed from {old_status} to {test.overall_status}',
+                                level='info',
+                                user=request.user,
+                                barcode=barcode_instance,
+                                test=test,
+                                request=request,
+                                details={
+                                    'old_status': old_status,
+                                    'new_status': test.overall_status,
+                                    'sku_code': sku_instance.code,
+                                    'batch_prefix': batch_instance.prefix,
+                                    'template': template_instance.name if template_instance else None,
+                                }
+                            )
                     except Test.DoesNotExist:
                         # Test not found, create new test instead
                         logger.warning(f"Test {test_id} not found, creating new test")
+                        is_new_test = True
                         test = Test.objects.create(
                             sku=sku_instance,
                             batch=batch_instance,
@@ -351,6 +376,7 @@ def new_test(request):
                         )
                 else:
                     # Create new test
+                    is_new_test = True
                     test = Test.objects.create(
                         sku=sku_instance,
                         batch=batch_instance,
@@ -382,40 +408,41 @@ def new_test(request):
                         remarks=remarks
                     )
 
-                # Log test creation
+                # Log test creation (only for new tests, not updates)
                 barcode_display = barcode_instance.sequence_number if barcode_instance else 'No Barcode'
-                if test.overall_status == 'failed':
-                    SystemLog.log_event(
-                        event_type='test_failed',
-                        title=f'Test Failed for {barcode_display}',
-                        description=f'Test failed for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
-                        level='warning',
-                        user=request.user,
-                        barcode=barcode_instance,
-                        test=test,
-                        request=request,
-                        details={
-                            'sku_code': sku_instance.code,
-                            'batch_prefix': batch_instance.prefix,
-                            'template': template_instance.name if template_instance else None,
-                        }
-                    )
-                elif test.overall_status == 'passed':
-                    SystemLog.log_event(
-                        event_type='test_passed',
-                        title=f'Test Passed for {barcode_display}',
-                        description=f'Test passed for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
-                        level='info',
-                        user=request.user,
-                        barcode=barcode_instance,
-                        test=test,
-                        request=request,
-                        details={
-                            'sku_code': sku_instance.code,
-                            'batch_prefix': batch_instance.prefix,
-                            'template': template_instance.name if template_instance else None,
-                        }
-                    )
+                if is_new_test:
+                    if test.overall_status == 'failed':
+                        SystemLog.log_event(
+                            event_type='test_failed',
+                            title=f'Test Failed for {barcode_display}',
+                            description=f'Test failed for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                            level='warning',
+                            user=request.user,
+                            barcode=barcode_instance,
+                            test=test,
+                            request=request,
+                            details={
+                                'sku_code': sku_instance.code,
+                                'batch_prefix': batch_instance.prefix,
+                                'template': template_instance.name if template_instance else None,
+                            }
+                        )
+                    elif test.overall_status == 'passed':
+                        SystemLog.log_event(
+                            event_type='test_passed',
+                            title=f'Test Passed for {barcode_display}',
+                            description=f'Test passed for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                            level='info',
+                            user=request.user,
+                            barcode=barcode_instance,
+                            test=test,
+                            request=request,
+                            details={
+                                'sku_code': sku_instance.code,
+                                'batch_prefix': batch_instance.prefix,
+                                'template': template_instance.name if template_instance else None,
+                            }
+                        )
 
                 return redirect('test_detail', test_id=test.id)
         else:
@@ -556,6 +583,24 @@ def auto_save_test(request):
                 user=request.user,
                 template_used=template_instance,
                 overall_status='draft'
+            )
+
+            # Log draft creation
+            barcode_display = barcode_instance.sequence_number if barcode_instance else 'No Barcode'
+            SystemLog.log_event(
+                event_type='test_draft_created',
+                title=f'Draft Test Created for {barcode_display}',
+                description=f'Draft test created for {barcode_display} (SKU: {sku_instance.code}, Batch: {batch_instance.prefix})',
+                level='info',
+                user=request.user,
+                barcode=barcode_instance,
+                test=test,
+                request=request,
+                details={
+                    'sku_code': sku_instance.code,
+                    'batch_prefix': batch_instance.prefix,
+                    'template': template_instance.name if template_instance else None,
+                }
             )
 
         # Save question answers
