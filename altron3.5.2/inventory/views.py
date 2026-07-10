@@ -1372,3 +1372,379 @@ def reorder_questions(request, template_id):
         'template': template,
         'questions': questions
     })
+
+
+@login_required
+@never_cache
+def soluqis_bi(request):
+    """Business Intelligence Dashboard for Quality and Service operations"""
+    if request.user.role not in ['admin', 'service', 'tester']:
+        return redirect('dashboard')
+
+    from django.db.models import Count, Q, Min, OuterRef, Subquery, F, Sum
+    from django.db.models.functions import TruncDate
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    import json
+
+    # --- Global Parameter: Date Filtering ---
+    today_dt = timezone.now()
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
+    label = request.GET.get('label', '30days')
+
+    # Defaults
+    to_date = today_dt.date()
+    from_date = (today_dt - timedelta(days=30)).date()
+
+    if label == 'today':
+        from_date = today_dt.date()
+        to_date = today_dt.date()
+    elif label == '7days':
+        from_date = (today_dt - timedelta(days=7)).date()
+        to_date = today_dt.date()
+    elif label == '30days':
+        from_date = (today_dt - timedelta(days=30)).date()
+        to_date = today_dt.date()
+    elif label == 'thismonth':
+        from_date = today_dt.date().replace(day=1)
+        to_date = today_dt.date()
+    elif from_date_str and to_date_str:
+        try:
+            from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+            to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+            label = 'custom'
+        except ValueError:
+            pass  # Fallback to default 30 days
+
+    # Make aware datetimes for database filtering
+    from_datetime = timezone.make_aware(datetime.combine(from_date, datetime.min.time()))
+    to_datetime = timezone.make_aware(datetime.combine(to_date, datetime.max.time()))
+
+    # --- 1. Production & Throughput Metrics ---
+    production_kpi = Batch.objects.filter(
+        created_at__range=(from_datetime, to_datetime)
+    ).aggregate(
+        total_barcodes=Sum('quantity'),
+        total_batches=Count('id')
+    )
+    total_barcodes = production_kpi['total_barcodes'] or 0
+    total_batches = production_kpi['total_batches'] or 0
+
+    # --- 2. Quality Control & Testing Metrics ---
+    counts = Test.objects.filter(
+        test_date__range=(from_datetime, to_datetime)
+    ).aggregate(
+        total_tests=Count('id'),
+        passed_tests=Count('id', filter=Q(overall_status='passed')),
+        failed_tests=Count('id', filter=Q(overall_status='failed')),
+        pending_tests=Count('id', filter=Q(overall_status='pending'))
+    )
+    total_tests = counts['total_tests'] or 0
+    passed_tests = counts['passed_tests'] or 0
+    failed_tests = counts['failed_tests'] or 0
+    pending_tests = counts['pending_tests'] or 0
+    
+    qa_pass_rate = round((passed_tests / (passed_tests + failed_tests) * 100), 1) if (passed_tests + failed_tests) > 0 else 0.0
+
+    # First Pass Yield (FPY)
+    first_test_id_sub = Test.objects.filter(barcode=OuterRef('id')).order_by('id').values('id')[:1]
+    
+    barcodes_with_first_test = Barcode.objects.annotate(
+        first_test_status=Subquery(
+            Test.objects.filter(id=Subquery(first_test_id_sub), test_date__range=(from_datetime, to_datetime)).values('overall_status')[:1]
+        )
+    ).filter(first_test_status__isnull=False)
+
+    fpy_total_tested = barcodes_with_first_test.count()
+    fpy_first_pass_passed = barcodes_with_first_test.filter(first_test_status='passed').count()
+    overall_fpy = round((fpy_first_pass_passed / fpy_total_tested * 100), 1) if fpy_total_tested > 0 else 0.0
+
+    # FPY by SKU
+    sku_fpy_data = []
+    for sku_obj in SKU.objects.all():
+        tested_in_sku = barcodes_with_first_test.filter(sku=sku_obj)
+        tested_count = tested_in_sku.count()
+        if tested_count > 0:
+            passed_first_count = tested_in_sku.filter(first_test_status='passed').count()
+            sku_fpy = round((passed_first_count / tested_count * 100), 1)
+            sku_fpy_data.append({
+                'code': sku_obj.code,
+                'description': sku_obj.description or sku_obj.code,
+                'tested': tested_count,
+                'passed_first': passed_first_count,
+                'fpy': sku_fpy
+            })
+    sku_fpy_data = sorted(sku_fpy_data, key=lambda x: x['fpy'], reverse=True)
+
+    # Top Failure Modes (Pareto Data)
+    top_failures = TestAnswer.objects.filter(
+        is_passed=False,
+        test__test_date__range=(from_datetime, to_datetime)
+    ).values(
+        'question__question_text', 'question__template__name'
+    ).annotate(
+        fail_count=Count('id')
+    ).order_by('-fail_count')[:7]
+
+    pareto_labels = []
+    pareto_data = []
+    for item in top_failures:
+        lbl = f"{item['question__question_text']} ({item['question__template__name']})"
+        pareto_labels.append(lbl)
+        pareto_data.append(item['fail_count'])
+
+    # Daily Test Velocity
+    daily_tests = Test.objects.filter(
+        test_date__range=(from_datetime, to_datetime)
+    ).annotate(
+        day=TruncDate('test_date')
+    ).values('day').annotate(
+        passed=Count('id', filter=Q(overall_status='passed')),
+        failed=Count('id', filter=Q(overall_status='failed'))
+    ).order_by('day')
+
+    velocity_dates = []
+    velocity_passed = []
+    velocity_failed = []
+    for row in daily_tests:
+        if row['day']:
+            velocity_dates.append(row['day'].strftime('%Y-%m-%d'))
+            velocity_passed.append(row['passed'])
+            velocity_failed.append(row['failed'])
+
+    # --- 3. Service & Field Quality Metrics ---
+    service_counts = ServiceCase.objects.filter(
+        created_at__range=(from_datetime, to_datetime)
+    ).aggregate(
+        total_cases=Count('id'),
+        open_cases=Count('id', filter=Q(status='open')),
+        in_progress_cases=Count('id', filter=Q(status='in_progress')),
+        completed_cases=Count('id', filter=Q(status='completed'))
+    )
+    total_service = service_counts['total_cases'] or 0
+    open_service = service_counts['open_cases'] or 0
+    in_progress_service = service_counts['in_progress_cases'] or 0
+    completed_service = service_counts['completed_cases'] or 0
+
+    # Field Failure Rate (Quality Leakage) %
+    total_barcodes_tested = Test.objects.filter(
+        test_date__range=(from_datetime, to_datetime)
+    ).values('barcode').distinct().count()
+
+    total_barcodes_serviced = ServiceCase.objects.filter(
+        created_at__range=(from_datetime, to_datetime),
+        barcode__isnull=False
+    ).values('barcode').distinct().count()
+
+    field_failure_rate = round((total_barcodes_serviced / total_barcodes_tested * 100), 1) if total_barcodes_tested > 0 else 0.0
+
+    # Service Escalations by Batch (Quality Leakage)
+    service_leakage = ServiceCase.objects.filter(
+        created_at__range=(from_datetime, to_datetime)
+    ).values(
+        'barcode__batch__prefix', 'barcode__batch__sku__code'
+    ).annotate(
+        service_count=Count('id')
+    ).order_by('-service_count')[:5]
+
+    leakage_batches = []
+    leakage_counts = []
+    for item in service_leakage:
+        if item['barcode__batch__prefix']:
+            leakage_batches.append(f"{item['barcode__batch__prefix']} ({item['barcode__batch__sku__code']})")
+            leakage_counts.append(item['service_count'])
+
+    # === STAFF PERFORMANCE ANALYSIS ===
+    # 1. Tester Performance
+    tester_stats = Test.objects.filter(
+        test_date__range=(from_datetime, to_datetime)
+    ).values('user__username', 'user__role').annotate(
+        total_tests=Count('id'),
+        passed_tests=Count('id', filter=Q(overall_status='passed')),
+        failed_tests=Count('id', filter=Q(overall_status='failed'))
+    ).order_by('-total_tests')
+
+    tester_data = []
+    for t in tester_stats:
+        total = t['total_tests']
+        passed = t['passed_tests']
+        rate = round((passed / total * 100), 1) if total > 0 else 0.0
+        tester_data.append({
+            'username': t['user__username'],
+            'role': t['user__role'],
+            'total': total,
+            'passed': passed,
+            'failed': t['failed_tests'],
+            'pass_rate': rate
+        })
+
+    # 2. Technician Performance
+    tech_stats = ServiceCase.objects.filter(
+        created_at__range=(from_datetime, to_datetime)
+    ).values('technician').annotate(
+        total_cases=Count('id'),
+        completed_cases=Count('id', filter=Q(status='completed'))
+    ).order_by('-total_cases')
+
+    tech_data = []
+    for tc in tech_stats:
+        total = tc['total_cases']
+        completed = tc['completed_cases']
+        rate = round((completed / total * 100), 1) if total > 0 else 0.0
+        tech_data.append({
+            'name': tc['technician'] or 'Unassigned',
+            'total': total,
+            'completed': completed,
+            'rate': rate
+        })
+
+    # === PRODUCT PERFORMANCE ANALYSIS ===
+    # 3. SKU Performance (Yield & returns)
+    sku_data = []
+    for sku in SKU.objects.all():
+        sku_tests = Test.objects.filter(sku=sku, test_date__range=(from_datetime, to_datetime))
+        total_t = sku_tests.count()
+        sku_services = ServiceCase.objects.filter(barcode__sku=sku, created_at__range=(from_datetime, to_datetime))
+        total_s = sku_services.count()
+
+        if total_t > 0 or total_s > 0:
+            sku_barcodes_fpy = barcodes_with_first_test.filter(sku=sku)
+            sku_fpy_tested = sku_barcodes_fpy.count()
+            sku_fpy_passed = sku_barcodes_fpy.filter(first_test_status='passed').count()
+            sku_fpy = round((sku_fpy_passed / sku_fpy_tested * 100), 1) if sku_fpy_tested > 0 else 0.0
+
+            passed_t = sku_tests.filter(overall_status='passed').count()
+            pass_rate = round((passed_t / total_t * 100), 1) if total_t > 0 else 0.0
+
+            sku_data.append({
+                'code': sku.code,
+                'description': sku.description or sku.code,
+                'total_tests': total_t,
+                'pass_rate': pass_rate,
+                'fpy': sku_fpy,
+                'returns': total_s
+            })
+    sku_data = sorted(sku_data, key=lambda x: x['fpy'])
+
+    # 4. Batch Performance (Yield, coverage, and returns)
+    batch_data = []
+    batches_in_period = Batch.objects.filter(
+        created_at__range=(from_datetime, to_datetime)
+    ).select_related('sku').annotate(
+        tested_count=Count('barcode__test', distinct=True),
+        return_count=Count('barcode__service_cases', distinct=True)
+    )
+    for batch in batches_in_period:
+        if batch.quantity > 0:
+            coverage = round((batch.tested_count / batch.quantity * 100), 1)
+            
+            batch_barcodes_fpy = barcodes_with_first_test.filter(batch=batch)
+            batch_fpy_tested = batch_barcodes_fpy.count()
+            batch_fpy_passed = batch_barcodes_fpy.filter(first_test_status='passed').count()
+            batch_fpy = round((batch_fpy_passed / batch_fpy_tested * 100), 1) if batch_fpy_tested > 0 else 0.0
+
+            batch_data.append({
+                'prefix': batch.prefix,
+                'sku_code': batch.sku.code,
+                'total': batch.quantity,
+                'tested': batch.tested_count,
+                'coverage': coverage,
+                'fpy': batch_fpy,
+                'returns': batch.return_count
+            })
+    batch_data = sorted(batch_data, key=lambda x: x['coverage'])[:10]
+
+    # --- 4. Exception & Alert Dashboard Data ---
+    # Stale Drafts (tests in draft > 24 hours)
+    stale_drafts = Test.objects.filter(
+        overall_status='draft',
+        updated_at__lt=timezone.now() - timedelta(hours=24)
+    ).select_related('sku', 'batch', 'barcode', 'user').order_by('-updated_at')[:5]
+
+    # SLA Breaches (service cases open > 7 days)
+    sla_breaches = ServiceCase.objects.filter(
+        status__in=['open', 'in_progress'],
+        created_at__lt=timezone.now() - timedelta(days=7)
+    ).select_related('barcode', 'barcode__sku').order_by('created_at')[:5]
+
+    # Low Coverage Batches in period (tested < 50% of quantity)
+    low_coverage_batches = []
+    batches_with_test_counts = Batch.objects.filter(
+        created_at__range=(from_datetime, to_datetime)
+    ).select_related('sku').annotate(
+        tested_count=Count('barcode__test', distinct=True)
+    )
+    for batch in batches_with_test_counts:
+        if batch.quantity > 0:
+            coverage = (batch.tested_count / batch.quantity)
+            if coverage < 0.50:
+                low_coverage_batches.append({
+                    'id': batch.id,
+                    'prefix': batch.prefix,
+                    'sku_code': batch.sku.code,
+                    'tested': batch.tested_count,
+                    'total': batch.quantity,
+                    'coverage_pct': round(coverage * 100, 1)
+                })
+    low_coverage_batches = sorted(low_coverage_batches, key=lambda x: x['coverage_pct'])[:5]
+
+    # High Failure Rate SKUs in period (>10% fail rate on at least 5 tests)
+    high_failure_skus = []
+    for sku in SKU.objects.all():
+        tests_in_period = Test.objects.filter(sku=sku, test_date__range=(from_datetime, to_datetime))
+        total = tests_in_period.count()
+        if total >= 5:
+            failed = tests_in_period.filter(overall_status='failed').count()
+            fail_rate = (failed / total * 100)
+            if fail_rate > 10.0:
+                high_failure_skus.append({
+                    'code': sku.code,
+                    'description': sku.description or sku.code,
+                    'total_tests': total,
+                    'failed_tests': failed,
+                    'failure_rate': round(fail_rate, 1)
+                })
+    high_failure_skus = sorted(high_failure_skus, key=lambda x: x['failure_rate'], reverse=True)[:5]
+
+    context = {
+        # Date Filters
+        'from_date': from_date.strftime('%Y-%m-%d'),
+        'to_date': to_date.strftime('%Y-%m-%d'),
+        'label': label,
+        # Production & QA KPIs
+        'total_barcodes': total_barcodes,
+        'total_batches': total_batches,
+        'total_tests': total_tests,
+        'passed_tests': passed_tests,
+        'failed_tests': failed_tests,
+        'pending_tests': pending_tests,
+        'qa_pass_rate': qa_pass_rate,
+        'overall_fpy': overall_fpy,
+        'sku_fpy_data': sku_fpy_data,
+        'pareto_labels_json': json.dumps(pareto_labels),
+        'pareto_data_json': json.dumps(pareto_data),
+        'velocity_dates_json': json.dumps(velocity_dates),
+        'velocity_passed_json': json.dumps(velocity_passed),
+        'velocity_failed_json': json.dumps(velocity_failed),
+        # Service & Field KPIs
+        'total_service': total_service,
+        'open_service': open_service,
+        'in_progress_service': in_progress_service,
+        'completed_service': completed_service,
+        'field_failure_rate': field_failure_rate,
+        'leakage_batches_json': json.dumps(leakage_batches),
+        'leakage_counts_json': json.dumps(leakage_counts),
+        # Exceptions & Alerts KPIs
+        'stale_drafts': stale_drafts,
+        'sla_breaches': sla_breaches,
+        'low_coverage_batches': low_coverage_batches,
+        'high_failure_skus': high_failure_skus,
+        # Staff & Product details
+        'tester_data': tester_data,
+        'tech_data': tech_data,
+        'sku_data': sku_data,
+        'batch_data': batch_data,
+    }
+    return render(request, 'inventory/soluqis_bi.html', context)
+

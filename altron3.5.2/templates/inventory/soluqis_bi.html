@@ -1,0 +1,557 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-4 sm:space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col xl:flex-row xl:justify-between xl:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 gap-4">
+        <div class="text-center xl:text-left">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center xl:justify-start space-x-2">
+                <span>Soluqis</span><span class="gradient-text">BI</span>
+            </h1>
+            <p class="text-sm sm:text-base text-slate-500 mt-1">Operational Analytics & Quality Control Intelligence</p>
+        </div>
+
+        <!-- Global Parameter: Date Filtering Controls -->
+        <form method="GET" class="flex flex-wrap items-center justify-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div class="flex bg-slate-200 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
+                <button type="submit" name="label" value="today" class="px-2.5 py-1.5 rounded-md {% if label == 'today' %}bg-white text-indigo-700 shadow-sm{% endif %}">Today</button>
+                <button type="submit" name="label" value="7days" class="px-2.5 py-1.5 rounded-md {% if label == '7days' %}bg-white text-indigo-700 shadow-sm{% endif %}">7 Days</button>
+                <button type="submit" name="label" value="30days" class="px-2.5 py-1.5 rounded-md {% if label == '30days' %}bg-white text-indigo-700 shadow-sm{% endif %}">30 Days</button>
+                <button type="submit" name="label" value="thismonth" class="px-2.5 py-1.5 rounded-md {% if label == 'thismonth' %}bg-white text-indigo-700 shadow-sm{% endif %}">Month</button>
+            </div>
+
+            <div class="flex items-center space-x-2 text-xs font-medium text-slate-500">
+                <span>From:</span>
+                <input type="date" name="from_date" value="{{ from_date }}" class="px-2 py-1 bg-white border border-slate-200 rounded-md focus:border-indigo-500">
+                <span>To:</span>
+                <input type="date" name="to_date" value="{{ to_date }}" class="px-2 py-1 bg-white border border-slate-200 rounded-md focus:border-indigo-500">
+            </div>
+
+            <button type="submit" class="btn-primary text-white text-xs px-3.5 py-1.5 rounded-md font-semibold">
+                Apply
+            </button>
+        </form>
+    </div>
+
+    <!-- Global Scorecard KPI Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <!-- FPY (First Pass Yield) Card -->
+        <div class="card p-6 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white relative overflow-hidden shadow-lg border-none">
+            <div class="absolute right-0 top-0 translate-x-4 -translate-y-4 w-28 h-28 bg-white bg-opacity-10 rounded-full blur-xl"></div>
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-indigo-200">First Pass Yield (FPY)</p>
+                    <p class="text-4xl font-black mt-2">{{ overall_fpy }}%</p>
+                </div>
+                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center shadow-inner">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-indigo-100 flex items-center">
+                <span class="font-bold bg-white bg-opacity-25 px-1.5 py-0.5 rounded mr-2">Target: >95%</span>
+                <span>Pass rate on first inspection attempt</span>
+            </div>
+        </div>
+
+        <!-- Production Output Card -->
+        <div class="card p-6 bg-white border border-slate-100 shadow-sm relative overflow-hidden">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Production Output</p>
+                    <p class="text-4xl font-extrabold text-slate-800 mt-2">{{ total_barcodes }}</p>
+                </div>
+                <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-500 flex items-center justify-between">
+                <span>Serialized Items</span>
+                <span class="font-bold text-slate-700">{{ total_batches }} Batches</span>
+            </div>
+        </div>
+
+        <!-- QA Activity Card -->
+        <div class="card p-6 bg-white border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">QA Pass Rate</p>
+                    <p class="text-4xl font-extrabold text-slate-800 mt-2">{{ qa_pass_rate }}%</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-500 flex items-center justify-between">
+                <span>{{ total_tests }} Tests Completed</span>
+                <span class="text-red-500 font-bold">{{ failed_tests }} Failed</span>
+            </div>
+        </div>
+
+        <!-- Field Return Rate Card -->
+        <div class="card p-6 bg-white border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Field Failure Rate</p>
+                    <p class="text-4xl font-extrabold text-rose-600 mt-2">{{ field_failure_rate }}%</p>
+                </div>
+                <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center border border-rose-100">
+                    <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-500 flex items-center justify-between">
+                <span>QA Leakage (Field Returns)</span>
+                <span class="text-slate-700 font-bold">{{ total_service }} Service Tickets</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Selection Buttons -->
+    <div class="flex border-b border-slate-200 gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-100 max-w-lg mx-auto">
+        <button id="btn-products" onclick="switchTab('products')" class="tab-btn flex-1 text-center py-2.5 rounded-lg text-sm font-bold transition-all duration-300 bg-white text-indigo-700 shadow-sm">
+            Product Quality
+        </button>
+        <button id="btn-staff" onclick="switchTab('staff')" class="tab-btn flex-1 text-center py-2.5 rounded-lg text-sm font-bold transition-all duration-300 text-slate-500 hover:text-slate-900">
+            Staff Calibration
+        </button>
+        <button id="btn-diagnostics" onclick="switchTab('diagnostics')" class="tab-btn flex-1 text-center py-2.5 rounded-lg text-sm font-bold transition-all duration-300 text-slate-500 hover:text-slate-900 flex items-center justify-center space-x-1.5">
+            <span>Alerts & Charts</span>
+            {% if stale_drafts or sla_breaches or low_coverage_batches or high_failure_skus %}
+            <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            {% endif %}
+        </button>
+    </div>
+
+    <!-- TAB PANE 1: PRODUCTS -->
+    <div id="pane-products" class="tab-pane space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- SKU Quality & Return Leaderboard -->
+            <div class="card p-6 bg-white border border-slate-100 shadow-sm overflow-hidden">
+                <h3 class="text-base font-bold text-slate-800 mb-1">SKU Quality Leaderboard</h3>
+                <p class="text-xs text-slate-400 mb-4">Compares SKU models by Yield and Field Return cases (Sorted by Lowest FPY)</p>
+                
+                <div class="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
+                    <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2.5">SKU Code</th>
+                                <th class="px-3 py-2.5">Tests Completed</th>
+                                <th class="px-3 py-2.5 text-center">Pass Rate</th>
+                                <th class="px-3 py-2.5 text-center">First Pass Yield</th>
+                                <th class="px-3 py-2.5 text-right">Warranty Cases</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            {% for sku in sku_data %}
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-3 py-3 font-semibold text-slate-900">
+                                    {{ sku.code }}
+                                    <span class="block text-[10px] text-slate-400 font-normal truncate max-w-[150px]">{{ sku.description }}</span>
+                                </td>
+                                <td class="px-3 py-3 font-medium text-slate-500">{{ sku.total_tests }}</td>
+                                <td class="px-3 py-3 text-center">
+                                    <span class="px-2 py-0.5 rounded-full font-bold
+                                        {% if sku.pass_rate >= 95 %}bg-emerald-50 text-emerald-700
+                                        {% elif sku.pass_rate >= 85 %}bg-orange-50 text-orange-700
+                                        {% else %}bg-rose-50 text-rose-700{% endif %}">
+                                        {{ sku.pass_rate }}%
+                                    </span>
+                                </td>
+                                <td class="px-3 py-3 text-center font-extrabold {% if sku.fpy >= 95 %}text-indigo-600{% else %}text-slate-700{% endif %}">{{ sku.fpy }}%</td>
+                                <td class="px-3 py-3 text-right font-semibold {% if sku.returns > 0 %}text-red-500{% else %}text-slate-400{% endif %}">{{ sku.returns }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-3 py-8 text-center text-slate-400">No SKU data available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Batch Status & Coverage Profiler -->
+            <div class="card p-6 bg-white border border-slate-100 shadow-sm overflow-hidden">
+                <h3 class="text-base font-bold text-slate-800 mb-1">Production Batch Profiler</h3>
+                <p class="text-xs text-slate-400 mb-4">Monitors batches for QA completion rates and defect correlations</p>
+                
+                <div class="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
+                    <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2.5">Batch Prefix</th>
+                                <th class="px-3 py-2.5">SKU</th>
+                                <th class="px-3 py-2.5 text-center">QA Coverage</th>
+                                <th class="px-3 py-2.5 text-center">Batch FPY</th>
+                                <th class="px-3 py-2.5 text-right">Returns</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            {% for batch in batch_data %}
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-3 py-3 font-semibold text-slate-900">{{ batch.prefix }}</td>
+                                <td class="px-3 py-3 font-medium text-slate-500">{{ batch.sku_code }}</td>
+                                <td class="px-3 py-3 text-center">
+                                    <div class="flex items-center justify-center space-x-1.5">
+                                        <div class="w-12 bg-slate-100 rounded-full h-1.5">
+                                            <div class="h-1.5 rounded-full {% if batch.coverage >= 95 %}bg-indigo-600{% elif batch.coverage >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}" style="width: {{ batch.coverage }}%"></div>
+                                        </div>
+                                        <span class="font-bold text-slate-600">{{ batch.coverage }}%</span>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-3 text-center font-bold text-slate-800">{{ batch.fpy }}%</td>
+                                <td class="px-3 py-3 text-right font-semibold {% if batch.returns > 0 %}text-red-500{% else %}text-slate-400{% endif %}">{{ batch.returns }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-3 py-8 text-center text-slate-400">No production runs recorded in period.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB PANE 2: STAFF -->
+    <div id="pane-staff" class="tab-pane space-y-6 hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- QA Tester Calibration & Throughput -->
+            <div class="card p-6 bg-white border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h3 class="text-base font-bold text-slate-800 mb-1">QA Tester Consistency & Output</h3>
+                    <p class="text-xs text-slate-400 mb-4">Evaluates tester throughput and pass-rate calibration to detect inspection rig/tester bias</p>
+                    
+                    <div class="overflow-x-auto max-h-[320px] overflow-y-auto pr-1">
+                        <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2.5">Tester Name</th>
+                                    <th class="px-3 py-2.5">Tests Run</th>
+                                    <th class="px-3 py-2.5 text-center">Passed Units</th>
+                                    <th class="px-3 py-2.5 text-center">Failed Units</th>
+                                    <th class="px-3 py-2.5 text-right">Approve Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-700">
+                                {% for tester in tester_data %}
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-3 py-3">
+                                        <span class="font-bold text-slate-900 capitalize">{{ tester.username }}</span>
+                                        <span class="block text-[10px] text-indigo-500 font-semibold capitalize">{{ tester.role }}</span>
+                                    </td>
+                                    <td class="px-3 py-3 font-semibold text-slate-600">{{ tester.total }}</td>
+                                    <td class="px-3 py-3 text-center text-emerald-600 font-bold">{{ tester.passed }}</td>
+                                    <td class="px-3 py-3 text-center text-rose-500 font-bold">{{ tester.failed }}</td>
+                                    <td class="px-3 py-3 text-right font-extrabold text-indigo-600">{{ tester.pass_rate }}%</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="px-3 py-8 text-center text-slate-400">No testers have submitted logs in this range.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400">
+                    <span class="font-semibold text-indigo-600">Calibration Alert:</span> Extreme tester approve rates (&gt;98% or &lt;70%) may indicate lax inspection or testing equipment misalignment.
+                </div>
+            </div>
+
+            <!-- Technician Service Performance -->
+            <div class="card p-6 bg-white border border-slate-100 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h3 class="text-base font-bold text-slate-800 mb-1">Technician Resolution Performance</h3>
+                    <p class="text-xs text-slate-400 mb-4">Tracks repair ticket resolution volume and resolution rate per assigned staff</p>
+                    
+                    <div class="overflow-x-auto max-h-[320px] overflow-y-auto pr-1">
+                        <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2.5">Technician</th>
+                                    <th class="px-3 py-2.5 text-center">Assigned Cases</th>
+                                    <th class="px-3 py-2.5 text-center">Resolved Cases</th>
+                                    <th class="px-3 py-2.5 text-right">Resolution Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-700">
+                                {% for tech in tech_data %}
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-3 py-3 font-bold text-slate-900 capitalize">{{ tech.name }}</td>
+                                    <td class="px-3 py-3 text-center font-medium text-slate-500">{{ tech.total }}</td>
+                                    <td class="px-3 py-3 text-center font-medium text-emerald-600 font-bold">{{ tech.completed }}</td>
+                                    <td class="px-3 py-3 text-right">
+                                        <span class="px-2 py-0.5 rounded-full font-bold
+                                            {% if tech.rate >= 80 %}bg-emerald-50 text-emerald-700
+                                            {% elif tech.rate >= 40 %}bg-orange-50 text-orange-700
+                                            {% else %}bg-rose-50 text-rose-700{% endif %}">
+                                            {{ tech.rate }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="px-3 py-8 text-center text-slate-400">No active technicians in selected range.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400">
+                    <span class="font-semibold text-orange-600">RMA Resolution target:</span> Aim for &gt;80% resolution efficiency within warranty guidelines.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB PANE 3: DIAGNOSTICS & ALERTS -->
+    <div id="pane-diagnostics" class="tab-pane space-y-6 hidden">
+        <!-- Visual Trends Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- QA Throughput Line Chart -->
+            <div class="card p-6 bg-white border border-slate-100 shadow-sm lg:col-span-2">
+                <div class="mb-4">
+                    <h3 class="text-base font-bold text-slate-800">QA Testing Velocity</h3>
+                    <p class="text-xs text-slate-400">Volume of tests performed by staff over selected range</p>
+                </div>
+                <div class="h-64 relative">
+                    <canvas id="velocityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Pareto Analysis: Top Failures -->
+            <div class="card p-6 bg-white border border-slate-100 shadow-sm lg:col-span-1">
+                <div>
+                    <h3 class="text-base font-bold text-slate-800">Top Defect Pareto</h3>
+                    <p class="text-xs text-slate-400 mb-4">Highest occurrence failures recorded by testers</p>
+                </div>
+                <div class="h-64 relative">
+                    <canvas id="paretoChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exceptions & Proactive Warnings -->
+        <div class="space-y-4">
+            <h3 class="text-base font-bold text-slate-850">Quality Risks & Alert Logs</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <!-- Alert 1: Unfinished Batches -->
+                <div class="card p-6 bg-white border border-red-50 shadow-sm border-t-4 border-t-red-500 flex flex-col justify-between min-h-[220px]">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Unfinished Batches</span>
+                            <span class="w-5 h-5 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-[10px]">!</span>
+                        </div>
+                        <div class="space-y-3 max-h-[120px] overflow-y-auto pr-1">
+                            {% for batch in low_coverage_batches %}
+                            <div class="bg-red-50/50 p-2 rounded-lg border border-red-100 flex flex-col">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-bold text-slate-700">{{ batch.prefix }}</span>
+                                    <span class="text-xs font-bold text-red-600">{{ batch.coverage_pct }}% done</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1">
+                                    <div class="bg-red-500 h-1 rounded-full" style="width: {{ batch.coverage_pct }}%"></div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-6 text-xs text-emerald-600 font-semibold">✓ All batches covered.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 2: High Defect SKUs -->
+                <div class="card p-6 bg-white border border-rose-50 shadow-sm border-t-4 border-t-rose-600 flex flex-col justify-between min-h-[220px]">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">High Defect SKUs</span>
+                            <span class="w-5 h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-[10px]">!</span>
+                        </div>
+                        <div class="space-y-3 max-h-[120px] overflow-y-auto pr-1">
+                            {% for item in high_failure_skus %}
+                            <div class="bg-rose-50/50 p-2 rounded-lg border border-rose-100 flex justify-between items-center text-xs">
+                                <span class="font-bold text-slate-800">{{ item.code }}</span>
+                                <span class="font-extrabold text-rose-600">{{ item.failure_rate }}% Fail</span>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-6 text-xs text-emerald-600 font-semibold">✓ All SKU defect rates &lt;10%.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 3: Stale QA Drafts -->
+                <div class="card p-6 bg-white border border-amber-50 shadow-sm border-t-4 border-t-amber-500 flex flex-col justify-between min-h-[220px]">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Stale Draft Tests</span>
+                            <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-[10px]">!</span>
+                        </div>
+                        <div class="space-y-3 max-h-[120px] overflow-y-auto pr-1">
+                            {% for draft in stale_drafts %}
+                            <div class="bg-amber-50/50 p-2 rounded-lg border border-amber-100 flex justify-between items-center text-xs">
+                                <span class="font-bold text-slate-700">Test #{{ draft.id }}</span>
+                                <span class="text-amber-700 font-bold">{{ draft.updated_at|timesince }} ago</span>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-6 text-xs text-emerald-600 font-semibold">✓ No stale drafts found.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 4: SLA Warranty Breaches -->
+                <div class="card p-6 bg-white border border-orange-50 shadow-sm border-t-4 border-t-orange-500 flex flex-col justify-between min-h-[220px]">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">SLA Breaches</span>
+                            <span class="w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-[10px]">!</span>
+                        </div>
+                        <div class="space-y-3 max-h-[120px] overflow-y-auto pr-1">
+                            {% for case in sla_breaches %}
+                            <div class="bg-orange-50/50 p-2 rounded-lg border border-orange-100 flex justify-between items-center text-xs">
+                                <a href="{% url 'service_detail' case.case_id %}" class="font-bold text-indigo-650 hover:underline">Case: {{ case.case_id }}</a>
+                                <span class="text-orange-700 font-bold">{{ case.created_at|date:"d M" }}</span>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-6 text-xs text-emerald-600 font-semibold">✓ No overdue service tickets.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Chart.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Tab switching logic
+    function switchTab(tabId) {
+        // Hide all panes
+        document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+        
+        // Show selected pane
+        document.getElementById('pane-' + tabId).classList.remove('hidden');
+
+        // Reset all button styles
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('bg-white', 'text-indigo-700', 'shadow-sm');
+            btn.classList.add('text-slate-500', 'hover:text-slate-900');
+        });
+
+        // Set active button style
+        const activeBtn = document.getElementById('btn-' + tabId);
+        activeBtn.classList.remove('text-slate-500', 'hover:text-slate-900');
+        activeBtn.classList.add('bg-white', 'text-indigo-700', 'shadow-sm');
+
+        // Trigger chart resize if diagnostics tab is clicked
+        if (tabId === 'diagnostics') {
+            window.velocityChartObj && window.velocityChartObj.resize();
+            window.paretoChartObj && window.paretoChartObj.resize();
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const paretoLabels = JSON.parse('{{ pareto_labels_json|safe }}');
+        const paretoData = JSON.parse('{{ pareto_data_json|safe }}');
+
+        const velocityDates = JSON.parse('{{ velocity_dates_json|safe }}');
+        const velocityPassed = JSON.parse('{{ velocity_passed_json|safe }}');
+        const velocityFailed = JSON.parse('{{ velocity_failed_json|safe }}');
+
+        // 1. QA Velocity Chart
+        const ctxVelocity = document.getElementById('velocityChart').getContext('2d');
+        window.velocityChartObj = new Chart(ctxVelocity, {
+            type: 'line',
+            data: {
+                labels: velocityDates.length > 0 ? velocityDates : ["No Data"],
+                datasets: [
+                    {
+                        label: 'Passed Tests',
+                        data: velocityPassed.length > 0 ? velocityPassed : [0],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Failed Tests',
+                        data: velocityFailed.length > 0 ? velocityFailed : [0],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 15, font: { family: 'Inter', size: 11 } } }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: '#94a3b8', font: { family: 'Inter', size: 10 } },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // 2. Defect Pareto Chart
+        const ctxPareto = document.getElementById('paretoChart').getContext('2d');
+        window.paretoChartObj = new Chart(ctxPareto, {
+            type: 'bar',
+            data: {
+                labels: paretoLabels.length > 0 ? paretoLabels.map(l => l.length > 25 ? l.substring(0, 22) + '...' : l) : ["No Defects Found"],
+                datasets: [{
+                    label: 'Fail Count',
+                    data: paretoData.length > 0 ? paretoData : [0],
+                    backgroundColor: 'rgba(102, 126, 234, 0.85)',
+                    hoverBackgroundColor: '#4f46e5',
+                    borderRadius: 8,
+                    barThickness: 14
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: '#94a3b8', font: { family: 'Inter', size: 10 } },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    y: {
+                        ticks: { font: { family: 'Inter', size: 10 }, color: '#475569' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

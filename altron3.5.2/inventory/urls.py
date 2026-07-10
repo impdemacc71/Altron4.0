@@ -33,4 +33,5 @@ urlpatterns = [
     path('service/case/<str:case_id>/', views.service_detail, name='service_detail'),
     path('service/case/<str:case_id>/print/', views.print_service_case_detail, name='print_service_case_detail'),
     path('template/<int:template_id>/reorder/', views.reorder_questions, name='reorder_questions'),
+    path('bi/', views.soluqis_bi, name='soluqis_bi'),
 ]
